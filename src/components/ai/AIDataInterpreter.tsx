@@ -18,11 +18,13 @@ export function AIDataInterpreter({ rpcData }: AIDataInterpreterProps) {
   }, [rpcData]);
 
   useEffect(() => {
+    // Auto-refresh insights every 30 seconds
     const interval = setInterval(() => {
       if (rpcData) {
+        console.log('🤖 AI: Refreshing insights...', new Date().toLocaleTimeString());
         interpretData();
       }
-    }, 120000); // 2 minutes
+    }, 30000); // 30 seconds
     return () => clearInterval(interval);
   }, [rpcData]);
 
@@ -97,6 +99,7 @@ export function AIDataInterpreter({ rpcData }: AIDataInterpreterProps) {
       analysis += '• **DeFi Strategy:** High activity = potential arbitrage opportunities\n';
       analysis += '• **Risk Assessment:** Network stability remains strong\n';
       analysis += '• **Performance:** Transaction finality under 10 seconds\n';
+      analysis += `\n**Last Updated:** ${new Date().toLocaleTimeString()} (Auto-refresh: 30s)\n`;
       
       setInterpretation(analysis);
     } catch (error) {

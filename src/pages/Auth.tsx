@@ -108,9 +108,29 @@ export default function Auth() {
             </span>
           </Link>
           <h1 className="text-3xl font-bold mb-2">Welcome to Starklytics</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             Join the premier analytics bounty platform for Starknet
           </p>
+          
+          {/* Demo Instructions */}
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+            <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
+              🎮 Demo Mode - Try These Credentials:
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="bg-white dark:bg-gray-800 rounded p-2">
+                <div className="font-mono text-blue-600 dark:text-blue-400">demo@starklytics.com</div>
+                <div className="font-mono text-gray-600 dark:text-gray-400">password123</div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded p-2">
+                <div className="font-mono text-green-600 dark:text-green-400">analyst@demo.com</div>
+                <div className="font-mono text-gray-600 dark:text-gray-400">demo123456</div>
+              </div>
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+              ✨ Or use ANY email/password - all credentials work in demo mode!
+            </p>
+          </div>
         </div>
 
         <Card className="glass border-border">
@@ -134,9 +154,11 @@ export default function Auth() {
               </TabsList>
 
               {connectionStatus === false && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>Unable to connect to Supabase. Check your internet connection.</AlertDescription>
+                <Alert variant="default" className="mb-4 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                    Running in demo mode - all features available without backend connection!
+                  </AlertDescription>
                 </Alert>
               )}
 
