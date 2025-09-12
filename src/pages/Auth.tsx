@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { testSupabaseConnection } from '@/utils/testConnection';
 import { validateEmail, validatePassword, sanitizeInput } from '@/utils/validation';
-import { handleError } from '@/utils/errorHandler';
+import { handleSupabaseError, getUserFriendlyMessage } from '@/utils/errorHandler';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,10 +50,10 @@ export default function Auth() {
     try {
       const { error } = await signIn(signInEmail, signInPassword);
       if (error) {
-        setError(handleError(error, 'Sign in'));
+        setError(getUserFriendlyMessage(handleSupabaseError(error)));
       }
     } catch (error: any) {
-      setError(handleError(error, 'Sign in'));
+      setError(getUserFriendlyMessage(handleSupabaseError(error)));
     } finally {
       setLoading(false);
     }
@@ -86,10 +86,10 @@ export default function Auth() {
       });
 
       if (error) {
-        setError(handleError(error, 'Sign up'));
+        setError(getUserFriendlyMessage(handleSupabaseError(error)));
       }
     } catch (error: any) {
-      setError(handleError(error, 'Sign up'));
+      setError(getUserFriendlyMessage(handleSupabaseError(error)));
     } finally {
       setLoading(false);
     }

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, Clock, DollarSign, Users, Plus } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { handleError } from '@/utils/errorHandler';
+import { handleSupabaseError, getUserFriendlyMessage } from '@/utils/errorHandler';
 import { useToast } from '@/components/ui/use-toast';
 
 interface Bounty {
@@ -64,7 +64,7 @@ const Bounties = () => {
       console.error('Error fetching bounties:', error);
       toast({
         title: "Error loading bounties",
-        description: handleError(error, 'Fetch bounties'),
+        description: getUserFriendlyMessage(handleSupabaseError(error)),
         variant: "destructive",
       });
     } finally {
@@ -114,7 +114,7 @@ const Bounties = () => {
       console.error('Error fetching stats:', error);
       toast({
         title: "Error loading statistics",
-        description: handleError(error, 'Fetch stats'),
+        description: getUserFriendlyMessage(handleSupabaseError(error)),
         variant: "destructive",
       });
     }
@@ -139,7 +139,7 @@ const Bounties = () => {
       console.error('Error joining bounty:', error);
       toast({
         title: "Error joining bounty",
-        description: handleError(error, 'Join bounty'),
+        description: getUserFriendlyMessage(handleSupabaseError(error)),
         variant: "destructive",
       });
     }
