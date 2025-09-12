@@ -45,12 +45,17 @@ export default function Wallet() {
   const [selectedWallet, setSelectedWallet] = useState<"argent" | "ready" | null>(null);
   const [detectedWallets, setDetectedWallets] = useState<{ argent: boolean; ready: boolean }>({ argent: false, ready: false });
 
-  // Auto-detect installed wallets on mount
-  useState(() => {
-    const argentDetected = typeof window !== 'undefined' && !!(window as any).starknet_argentX;
-    const readyDetected = typeof window !== 'undefined' && !!(window as any).starknet_ready;
-    setDetectedWallets({ argent: argentDetected, ready: readyDetected });
-  });
+  useEffect(() => {
+    const checkWallets = () => {
+      const argentDetected = typeof window !== 'undefined' && !!(window as any).starknet_argentX;
+      const readyDetected = typeof window !== 'undefined' && !!(window as any).starknet_ready;
+      setDetectedWallets({ argent: argentDetected, ready: readyDetected });
+    };
+    
+    checkWallets();
+    // Check again after a delay for wallet extensions that load slowly
+    setTimeout(checkWallets, 1000);
+  }, []);
 
   const [tokenBalances] = useState<TokenBalance[]>([
     { symbol: "ETH", balance: "2.45", usdValue: "4,890.50", change24h: 2.34 },
@@ -88,13 +93,30 @@ export default function Wallet() {
   const connectWallet = async (walletType: "argent" | "ready") => {
     setSelectedWallet(walletType);
     try {
-      // Simulate wallet connection
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setIsConnected(true);
-      setWalletAddress("0x1234567890abcdef1234567890abcdef12345678");
-      console.log(`Connected to ${walletType} wallet`);
+      let wallet;
+      if (walletType === 'argent' && (window as any).starknet_argentX) {
+        wallet = (window as any).starknet_argentX;
+      } else if (walletType === 'ready' && (window as any).starknet_ready) {
+        wallet = (window as any).starknet_ready;
+      }
+      
+      if (wallet) {
+        await wallet.enable();
+        const accounts = await wallet.request({ type: 'wallet_requestAccounts' });
+        if (accounts.length > 0) {
+          setIsConnected(true);
+          setWalletAddress(accounts[0]);
+          console.log(`Connected to ${walletType} wallet:`, accounts[0]);
+        }
+      } else {
+        // Fallback simulation
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setIsConnected(true);
+        setWalletAddress("0x1234567890abcdef1234567890abcdef12345678");
+      }
     } catch (error) {
       console.error("Error connecting wallet:", error);
+      setSelectedWallet(null);
     }
   };
 
@@ -179,6 +201,22 @@ export default function Wallet() {
                     )}
                   </Button>
                 )}
+                <Button
+                  onClick={() => window.open('/auth?social=true', '_self')}
+                  variant="outline"
+                  className="w-full h-16 flex items-center justify-between p-4 hover:bg-primary/10 hover:border-primary"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">C</span>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium">Social Login</p>
+                      <p className="text-xs text-muted-foreground">Login with Google, Twitter, or Email</p>
+                    </div>
+                  </div>
+                </Button>
+                
                 {!detectedWallets.argent && !detectedWallets.ready && (
                   <div className="text-center text-muted-foreground py-4">
                     <AlertCircle className="w-6 h-6 mx-auto mb-2" />

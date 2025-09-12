@@ -17,14 +17,15 @@ import {
   User,
   Plus,
   LogOut,
-  FileBarChart
+  FileBarChart,
+  Activity
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Query Editor", href: "/query", icon: Database },
+  { name: "Analytics Workspace", href: "/analytics", icon: BarChart3 },
   { name: "Dashboard Builder", href: "/builder", icon: Layout },
-  { name: "Data Visualization", href: "/charts", icon: BarChart3 },
+  { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
   { name: "Bounties", href: "/bounties", icon: Trophy },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

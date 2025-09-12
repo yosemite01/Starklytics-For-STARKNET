@@ -7,7 +7,7 @@ export class QueryService {
     this.supabase = supabase;
   }
 
-  async saveQuery(query: { title: string; query_text: string; description?: string }) {
+  async saveQuery(query: { title: string; query_text: string; description?: string; creator_id: string }) {
     const { data, error } = await this.supabase
       .from('queries')
       .insert(query)
@@ -16,6 +16,17 @@ export class QueryService {
 
     if (error) throw error;
     return data;
+  }
+
+  async getUserQueries(userId: string) {
+    const { data, error } = await this.supabase
+      .from('queries')
+      .select('*')
+      .eq('creator_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   }
 
   async saveQueryResults(queryId: string, results: any) {

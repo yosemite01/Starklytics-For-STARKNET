@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Clock, DollarSign, Users, Plus } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { handleError } from '@/utils/errorHandler';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Bounty {
   id: string;
@@ -32,6 +35,7 @@ interface Stats {
 
 const Bounties = () => {
   const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [stats, setStats] = useState<Stats>({
     activeBounties: 0,
@@ -56,8 +60,13 @@ const Bounties = () => {
 
       if (error) throw error;
       setBounties(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching bounties:', error);
+      toast({
+        title: "Error loading bounties",
+        description: handleError(error, 'Fetch bounties'),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -101,8 +110,13 @@ const Bounties = () => {
         activeParticipants: participantsCount || 0,
         completedThisMonth: completedThisMonthCount || 0
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching stats:', error);
+      toast({
+        title: "Error loading statistics",
+        description: handleError(error, 'Fetch stats'),
+        variant: "destructive",
+      });
     }
   };
 
@@ -123,6 +137,11 @@ const Bounties = () => {
       fetchBounties();
     } catch (error: any) {
       console.error('Error joining bounty:', error);
+      toast({
+        title: "Error joining bounty",
+        description: handleError(error, 'Join bounty'),
+        variant: "destructive",
+      });
     }
   };
 
@@ -215,7 +234,7 @@ const Bounties = () => {
             {/* Bounties List */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <LoadingSpinner size="lg" />
               </div>
             ) : bounties.length === 0 ? (
               <Card className="glass">

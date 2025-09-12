@@ -109,7 +109,6 @@ export default function CreateBounty() {
       if (bountyError) throw bountyError;
 
       // 2. Call backend API to perform deposit with AutoSwappr
-      // (This should be a secure endpoint, e.g. /api/deposit-bounty)
       const depositRes = await fetch('/api/deposit-bounty', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,7 +123,30 @@ export default function CreateBounty() {
         throw new Error('Failed to deposit bounty funds. Please try again or contact support.');
       }
 
-      // 3. Update bounty status to 'active' after successful deposit
+      // 3. Create bounty on smart contract (if wallet connected)
+      if (profile.wallet_address && window.starknet) {
+        try {
+          const { BountyContractService } = await import('@/integrations/bounty-contract');
+          const contractService = new BountyContractService();
+          
+          // Convert strings to felt252 format (first 31 characters)
+          const titleFelt = formData.title.slice(0, 31);
+          const descFelt = formData.description.slice(0, 31);
+          
+          await contractService.createBounty(
+            window.starknet,
+            titleFelt,
+            descFelt,
+            formData.reward_amount,
+            Math.floor(new Date(formData.deadline).getTime() / 1000),
+            parseInt(formData.max_participants) || 100
+          );
+        } catch (contractError) {
+          console.warn('Contract creation failed, continuing with database only:', contractError);
+        }
+      }
+
+      // 4. Update bounty status to 'active' after successful deposit
       await supabase
         .from('bounties')
         .update({ status: 'active' })

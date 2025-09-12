@@ -100,36 +100,69 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signUp = async (email: string, password: string, userData?: { full_name?: string; username?: string; role?: 'analyst' | 'bounty_creator' }) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: userData
-      }
-    });
-    
-    return { error };
-  };
-
-  const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: userData
+        }
       });
       
       if (error) throw error;
       
       if (data.user) {
-        // Force page reload for clean state
+        // Create profile
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          username: userData?.username || email.split('@')[0],
+          full_name: userData?.full_name || '',
+          role: userData?.role || 'analyst',
+          email_verified: false,
+          onboarding_completed: true,
+          total_earnings: 0,
+          reputation_score: 0
+        });
+        
+        // Auto sign in
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (!signInError) window.location.href = '/';
+      }
+      
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      console.log('Attempting sign in with:', { email });
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      console.log('Sign in response:', { data, error });
+      
+      if (error) {
+        console.error('Supabase auth error:', error);
+        throw error;
+      }
+      
+      if (data.user) {
+        console.log('Sign in successful, redirecting...');
         window.location.href = '/';
       }
       
       return { error: null };
     } catch (error: any) {
+      console.error('Sign in failed:', error);
+      if (error.message === 'Failed to fetch') {
+        return { error: { message: 'Network error. Please check your internet connection and try again.' } };
+      }
       return { error };
     }
   };

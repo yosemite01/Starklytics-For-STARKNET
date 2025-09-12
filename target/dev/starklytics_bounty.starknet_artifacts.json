@@ -1,0 +1,1 @@
+{"version":1,"contracts":[{"id":"vkpjdb5dt01r8","package_name":"starklytics_bounty","contract_name":"BountyContract","module_path":"starklytics_bounty::bounty_contract::BountyContract","artifacts":{"sierra":"starklytics_bounty_BountyContract.contract_class.json","casm":"starklytics_bounty_BountyContract.compiled_contract_class.json"}}]}
