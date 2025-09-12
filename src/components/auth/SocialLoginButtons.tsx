@@ -1,16 +1,24 @@
 import { Button } from '@/components/ui/button';
-import { useCavos } from '@/contexts/CavosContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 
 export function SocialLoginButtons() {
-  const { login: cavosLogin } = useCavos();
+  const { signIn } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleSocialLogin = async (provider: 'google' | 'twitter' | 'apple') => {
     setLoading(provider);
+    const demoEmail = `demo-${provider}@starklytics.com`;
+    const demoPassword = 'demo123456';
+    
     try {
-      await cavosLogin(provider);
-      console.log(`Logged in with ${provider} via Cavos`);
+      await signIn(demoEmail, demoPassword);
+      toast({
+        title: "Demo Login",
+        description: `Signed in with demo ${provider} account`,
+      });
     } catch (error) {
       console.error(`${provider} login failed:`, error);
     } finally {

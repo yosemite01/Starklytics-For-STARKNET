@@ -101,7 +101,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string, userData?: { full_name?: string; username?: string; role?: 'analyst' | 'bounty_creator' }) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // First try to sign up
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -110,59 +111,91 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       });
       
-      if (error) throw error;
+      if (signUpError && !signUpError.message.includes('already registered')) {
+        throw signUpError;
+      }
       
-      if (data.user) {
-        // Create profile
-        await supabase.from('profiles').insert({
-          id: data.user.id,
+      // If user already exists or signup successful, try to sign in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (signInError) {
+        throw signInError;
+      }
+      
+      // Create or update profile if sign in successful
+      if (signInData.user) {
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: signInData.user.id,
           username: userData?.username || email.split('@')[0],
           full_name: userData?.full_name || '',
           role: userData?.role || 'analyst',
-          email_verified: false,
+          email_verified: true,
           onboarding_completed: true,
           total_earnings: 0,
           reputation_score: 0
         });
         
-        // Auto sign in
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (!signInError) window.location.href = '/';
+        if (profileError) console.warn('Profile creation warning:', profileError);
+        
+        // Redirect to dashboard
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 100);
       }
       
       return { error: null };
     } catch (error: any) {
+      console.error('Sign up error:', error);
       return { error };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Attempting sign in with:', { email });
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
-      console.log('Sign in response:', { data, error });
-      
       if (error) {
-        console.error('Supabase auth error:', error);
+        // If user doesn't exist, create account automatically
+        if (error.message.includes('Invalid login credentials')) {
+          console.log('User not found, creating account...');
+          return await signUp(email, password, { 
+            full_name: email.split('@')[0],
+            username: email.split('@')[0],
+            role: 'analyst'
+          });
+        }
         throw error;
       }
       
       if (data.user) {
-        console.log('Sign in successful, redirecting...');
-        window.location.href = '/';
+        // Ensure profile exists
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: data.user.id,
+          username: data.user.email?.split('@')[0] || 'user',
+          full_name: data.user.user_metadata?.full_name || '',
+          role: data.user.user_metadata?.role || 'analyst',
+          email_verified: true,
+          onboarding_completed: true,
+          total_earnings: 0,
+          reputation_score: 0
+        });
+        
+        if (profileError) console.warn('Profile upsert warning:', profileError);
+        
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 100);
       }
       
       return { error: null };
     } catch (error: any) {
       console.error('Sign in failed:', error);
-      if (error.message === 'Failed to fetch') {
-        return { error: { message: 'Network error. Please check your internet connection and try again.' } };
-      }
       return { error };
     }
   };
