@@ -63,153 +63,74 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          // Defer profile fetch to avoid deadlocks
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(() => {
-          fetchProfile(session.user.id);
-        }, 0);
-      }
-      
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // DEMO MODE - Check for stored demo session
+    const demoUser = localStorage.getItem('demo_user');
+    const demoProfile = localStorage.getItem('demo_profile');
+    
+    if (demoUser && demoProfile) {
+      setUser(JSON.parse(demoUser));
+      setProfile(JSON.parse(demoProfile));
+    }
+    
+    setLoading(false);
   }, []);
 
   const signUp = async (email: string, password: string, userData?: { full_name?: string; username?: string; role?: 'analyst' | 'bounty_creator' }) => {
+    // DEMO MODE - Instant login without real authentication
     try {
-      // First try to sign up
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const demoUser = {
+        id: `demo-${Date.now()}`,
         email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: userData
-        }
-      });
+        user_metadata: userData
+      };
       
-      if (signUpError && !signUpError.message.includes('already registered')) {
-        throw signUpError;
-      }
+      const demoProfile = {
+        id: demoUser.id,
+        username: userData?.username || email.split('@')[0],
+        full_name: userData?.full_name || '',
+        role: userData?.role || 'analyst',
+        email_verified: true,
+        onboarding_completed: true,
+        total_earnings: 0,
+        reputation_score: 0
+      };
       
-      // If user already exists or signup successful, try to sign in
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // Store demo session
+      localStorage.setItem('demo_user', JSON.stringify(demoUser));
+      localStorage.setItem('demo_profile', JSON.stringify(demoProfile));
       
-      if (signInError) {
-        throw signInError;
-      }
+      // Set state
+      setUser(demoUser as any);
+      setProfile(demoProfile);
       
-      // Create or update profile if sign in successful
-      if (signInData.user) {
-        const { error: profileError } = await supabase.from('profiles').upsert({
-          id: signInData.user.id,
-          username: userData?.username || email.split('@')[0],
-          full_name: userData?.full_name || '',
-          role: userData?.role || 'analyst',
-          email_verified: true,
-          onboarding_completed: true,
-          total_earnings: 0,
-          reputation_score: 0
-        });
-        
-        if (profileError) console.warn('Profile creation warning:', profileError);
-        
-        // Redirect to dashboard
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 100);
-      }
+      // Redirect
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
       
       return { error: null };
     } catch (error: any) {
-      console.error('Sign up error:', error);
       return { error };
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        // If user doesn't exist, create account automatically
-        if (error.message.includes('Invalid login credentials')) {
-          console.log('User not found, creating account...');
-          return await signUp(email, password, { 
-            full_name: email.split('@')[0],
-            username: email.split('@')[0],
-            role: 'analyst'
-          });
-        }
-        throw error;
-      }
-      
-      if (data.user) {
-        // Ensure profile exists
-        const { error: profileError } = await supabase.from('profiles').upsert({
-          id: data.user.id,
-          username: data.user.email?.split('@')[0] || 'user',
-          full_name: data.user.user_metadata?.full_name || '',
-          role: data.user.user_metadata?.role || 'analyst',
-          email_verified: true,
-          onboarding_completed: true,
-          total_earnings: 0,
-          reputation_score: 0
-        });
-        
-        if (profileError) console.warn('Profile upsert warning:', profileError);
-        
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 100);
-      }
-      
-      return { error: null };
-    } catch (error: any) {
-      console.error('Sign in failed:', error);
-      return { error };
-    }
+    // DEMO MODE - Instant login
+    return await signUp(email, password, {
+      full_name: email.split('@')[0],
+      username: email.split('@')[0],
+      role: 'analyst'
+    });
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut({ scope: 'global' });
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      window.location.href = '/auth';
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    // DEMO MODE - Clear demo session
+    localStorage.removeItem('demo_user');
+    localStorage.removeItem('demo_profile');
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    window.location.href = '/auth';
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
