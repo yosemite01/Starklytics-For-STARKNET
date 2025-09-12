@@ -152,9 +152,8 @@ const Bounties = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="flex">
-        <AuthenticatedSidebar />
-        <div className="flex-1">
+      <AuthenticatedSidebar />
+      <div className="ml-64">
           <Header 
             title="Analytics Bounties" 
             subtitle="Contribute to Starknet analytics and earn rewards"
@@ -305,7 +304,6 @@ const Bounties = () => {
               </div>
             )}
           </main>
-        </div>
       </div>
     </div>
   );

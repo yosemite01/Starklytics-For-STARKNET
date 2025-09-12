@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -324,10 +324,10 @@ function DashboardBuilder() {
   const selectedWidgetData = dashboardState.widgets.find(w => w.id === selectedWidgetId);
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <Sidebar />
+    <div className="min-h-screen bg-background">
+      <AuthenticatedSidebar />
       
-      <div className="flex-1 flex flex-col">
+      <div className="ml-64 flex flex-col min-h-screen">
         <Header 
           title="Dashboard Builder" 
           subtitle="Create and customize your analytics dashboards"

@@ -225,7 +225,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Starknet
 VITE_STARKNET_RPC_URL=https://starknet-mainnet.reddio.com/rpc/v0_7
-VITE_BOUNTY_CONTRACT_ADDRESS=0x...
+VITE_BOUNTY_CONTRACT_ADDRESS=0x07070d915635269ea0930fa1c538f2d026e02e5078884aeb007141c39f481eee
 
 # AutoSwappr
 VITE_AUTOSWAPPR_API_URL=https://api.autoswappr.com

@@ -65,14 +65,14 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
   return (
     <div
       className={cn(
-        "glass border-r border-sidebar-border bg-sidebar transition-all duration-300",
+        "fixed left-0 top-0 h-screen glass border-r bg-card text-card-foreground transition-all duration-300 z-40",
         collapsed ? "w-16" : "w-64",
         className
       )}
     >
       <div className="flex h-full flex-col">
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
+        <div className="flex h-16 items-center justify-between px-4 border-b border-border">
           {!collapsed && (
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -87,7 +87,7 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="hover:bg-sidebar-accent"
+            className="hover:bg-accent/10"
           >
             <ChevronLeft
               className={cn(
@@ -106,7 +106,7 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
               <input
                 type="text"
                 placeholder="Search..."
-                className="w-full pl-10 pr-4 py-2 bg-sidebar-accent border border-sidebar-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -124,13 +124,13 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
                   "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group",
                   isActive
                     ? "bg-primary text-primary-foreground shadow-glow"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
                 )}
               >
                 <item.icon
                   className={cn(
                     "w-5 h-5 transition-colors",
-                    isActive ? "text-primary-foreground" : "text-sidebar-foreground group-hover:text-primary"
+                    isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"
                   )}
                 />
                 {!collapsed && <span>{item.name}</span>}
@@ -171,16 +171,16 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
               </div>
               <Link
                 to="/create-bounty"
-                className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group text-muted-foreground hover:bg-accent/10 hover:text-foreground"
               >
-                <Plus className="w-5 h-5 transition-colors text-sidebar-foreground group-hover:text-primary" />
+                <Plus className="w-5 h-5 transition-colors text-muted-foreground group-hover:text-primary" />
                 <span>Create Bounty</span>
               </Link>
               <Link
                 to="/profile"
-                className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group text-muted-foreground hover:bg-accent/10 hover:text-foreground"
               >
-                <User className="w-5 h-5 transition-colors text-sidebar-foreground group-hover:text-primary" />
+                <User className="w-5 h-5 transition-colors text-muted-foreground group-hover:text-primary" />
                 <span>Profile</span>
               </Link>
             </div>
@@ -188,7 +188,7 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-sidebar-border space-y-3">
+        <div className="p-4 border-t border-border space-y-3">
           {!collapsed && profile && (
             <div className="flex items-center space-x-3 px-3 py-2">
               <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
@@ -197,7 +197,7 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {profile.full_name || profile.username || 'Analytics User'}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">

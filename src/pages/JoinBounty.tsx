@@ -1,13 +1,12 @@
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function JoinBounty() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="flex">
-        <Sidebar />
-        <div className="flex-1">
+      <AuthenticatedSidebar />
+      <div className="ml-64">
           <Header title="Join Bounty" subtitle="Participate in a bounty challenge" />
           <main className="p-6">
             <Card className="glass max-w-xl mx-auto">
@@ -19,7 +18,6 @@ export default function JoinBounty() {
               </CardContent>
             </Card>
           </main>
-        </div>
       </div>
     </div>
   );

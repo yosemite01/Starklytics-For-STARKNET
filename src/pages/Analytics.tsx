@@ -27,10 +27,10 @@ export default function Analytics() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
       
-      <div className="flex-1 flex flex-col">
+      <div className="ml-64 flex flex-col min-h-screen">
         <Header 
           title="Analytics Workspace" 
           subtitle="Query, visualize, and build dashboards in one place"

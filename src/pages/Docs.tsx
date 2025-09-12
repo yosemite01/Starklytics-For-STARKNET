@@ -93,16 +93,14 @@ export default function Docs() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex">
-        {user ? <AuthenticatedSidebar /> : <Sidebar />}
-        <div className="flex-1">
+      <AuthenticatedSidebar />
+      <div className="ml-64">
           <Header title="Documentation" />
           <main className="container mx-auto p-6">
             <div className="prose prose-invert prose-headings:text-primary prose-a:text-primary max-w-4xl mx-auto bg-card p-8 rounded-lg border border-border">
               <ReactMarkdown>{docsMarkdown}</ReactMarkdown>
             </div>
           </main>
-        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
+
 import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { StatsOverview } from "@/components/dashboard/StatsOverview";
@@ -20,9 +20,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="flex">
-        <AuthenticatedSidebar />
-        <div className="flex-1">
+      <AuthenticatedSidebar />
+      <div className="ml-64">
           <Header 
             title="Analytics Dashboard" 
             subtitle="Monitor Starknet network activity and performance"
@@ -123,7 +122,6 @@ const Index = () => {
               </CardContent>
             </Card>
           </main>
-        </div>
       </div>
       
       {/* AI Components */}

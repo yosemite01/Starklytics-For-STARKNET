@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { StarknetDataService } from "@/services/StarknetDataService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -260,10 +260,10 @@ export default function DataVisualization() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <Sidebar />
+    <div className="min-h-screen bg-background">
+      <AuthenticatedSidebar />
       
-      <div className="flex-1 flex flex-col">
+      <div className="ml-64 flex flex-col min-h-screen">
         <Header 
           title="Data Visualization" 
           subtitle="Interactive charts and analytics for Starknet data"

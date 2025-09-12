@@ -5,8 +5,10 @@ export class StarknetDataService {
   private fallbackMode: boolean = false;
 
   constructor() {
+    const rpcUrl = import.meta.env.VITE_STARKNET_RPC_URL || 'https://starknet-mainnet.reddio.com/rpc/v0_7';
+    console.log('Using Starknet RPC:', rpcUrl);
     this.provider = new RpcProvider({ 
-      nodeUrl: 'https://starknet-mainnet.reddio.com/rpc/v0_7' 
+      nodeUrl: rpcUrl 
     });
   }
 
