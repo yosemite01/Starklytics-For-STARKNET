@@ -94,7 +94,7 @@ export default function Docs() {
   return (
     <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
-      <div className="ml-64">
+      <div className="lg:ml-64">
           <Header title="Documentation" />
           <main className="container mx-auto p-6">
             <div className="prose prose-invert prose-headings:text-primary prose-a:text-primary max-w-4xl mx-auto bg-card p-8 rounded-lg border border-border">

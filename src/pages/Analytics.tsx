@@ -30,7 +30,7 @@ export default function Analytics() {
     <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
       
-      <div className="ml-64 flex flex-col min-h-screen">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         <Header 
           title="Analytics Workspace" 
           subtitle="Query, visualize, and build dashboards in one place"

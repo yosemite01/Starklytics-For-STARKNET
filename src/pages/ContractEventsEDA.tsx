@@ -198,7 +198,7 @@ export default function ContractEventsEDA() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
-      <div className="ml-64">
+      <div className="lg:ml-64">
           <Header title="Contract Events EDA" subtitle="Basic event analysis for any Starknet contract" />
           <main className="p-6 space-y-6">
             <Card className="glass max-w-xl mx-auto">

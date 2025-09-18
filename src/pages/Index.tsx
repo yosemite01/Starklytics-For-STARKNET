@@ -21,7 +21,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
-      <div className="ml-64">
+      <div className="lg:ml-64">
           <Header 
             title="Analytics Dashboard" 
             subtitle="Monitor Starknet network activity and performance"

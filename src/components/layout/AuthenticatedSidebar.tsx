@@ -66,6 +66,7 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
     <div
       className={cn(
         "fixed left-0 top-0 h-screen glass border-r bg-card text-card-foreground transition-all duration-300 z-40",
+        "lg:translate-x-0 -translate-x-full lg:static lg:transform-none"
         collapsed ? "w-16" : "w-64",
         className
       )}

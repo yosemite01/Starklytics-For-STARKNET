@@ -6,7 +6,7 @@ export default function PlaceBounty() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
-      <div className="ml-64">
+      <div className="lg:ml-64">
           <Header title="Place Bounty" subtitle="Create and post a new bounty" />
           <main className="p-6">
             <Card className="glass max-w-xl mx-auto">

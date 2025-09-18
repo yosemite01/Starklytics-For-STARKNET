@@ -263,7 +263,7 @@ export default function DataVisualization() {
     <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
       
-      <div className="ml-64 flex flex-col min-h-screen">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         <Header 
           title="Data Visualization" 
           subtitle="Interactive charts and analytics for Starknet data"

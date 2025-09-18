@@ -46,7 +46,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
-      <div className="ml-64 flex flex-col min-h-screen">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         <Header title="Settings" subtitle="Manage your account preferences" />
         
         <main className="flex-1 p-6 space-y-6">

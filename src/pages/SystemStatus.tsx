@@ -145,7 +145,7 @@ export default function SystemStatus() {
     <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
       
-      <div className="ml-64 flex flex-col min-h-screen">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         <Header 
           title="System Status" 
           subtitle="Monitor platform health and connectivity"

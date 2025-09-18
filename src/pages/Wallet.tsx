@@ -138,7 +138,7 @@ export default function Wallet() {
     <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
       
-      <div className="ml-64 flex flex-col min-h-screen">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         <Header 
           title="Wallet" 
           subtitle="Manage your Starknet wallet and view portfolio"

@@ -193,9 +193,9 @@ export default function CreateBounty() {
 
   if (profile?.role === 'analyst') {
     return (
-      <div className="flex min-h-screen w-full bg-background">
+      <div className="min-h-screen bg-background">
         <AuthenticatedSidebar />
-        <div className="flex-1 flex flex-col">
+        <div className="lg:ml-64 flex flex-col min-h-screen">
           <Header title="Create Bounty" subtitle="Post analytics challenges for the community" />
           
           <main className="flex-1 p-6 flex items-center justify-center">
@@ -218,9 +218,9 @@ export default function CreateBounty() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="min-h-screen bg-background">
       <AuthenticatedSidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         <Header 
           title="Create Bounty" 
           subtitle="Post analytics challenges for the community"
