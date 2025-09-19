@@ -1,40 +1,37 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit'); // ✅ normalize IPv6/IP
 const logger = require('./logger');
+
+// 🔹 Helper to build a consistent handler
+const buildHandler = (type, getExtra = () => ({})) => (req, res) => {
+  logger.warn(`${type} rate limit exceeded`, {
+    requestId: req.requestId,
+    ip: req.ip,
+    path: req.path,
+    userAgent: req.get('User-Agent'),
+    ...getExtra(req)
+  });
+
+  res.status(429).json({
+    success: false,
+    message: `Too many ${type} requests, please try again later`
+  });
+};
 
 // General rate limiter
 const generalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later'
-  },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  handler: (req, res) => {
-    logger.warn('Rate limit exceeded', {
-      requestId: req.requestId,
-      ip: req.ip,
-      path: req.path,
-      userAgent: req.get('User-Agent')
-    });
-    
-    res.status(429).json({
-      success: false,
-      message: 'Too many requests from this IP, please try again later'
-    });
-  }
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: buildHandler('general')
 });
 
 // Strict rate limiter for authentication routes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs for auth routes
-  message: {
-    success: false,
-    message: 'Too many authentication attempts, please try again later'
-  },
-  skipSuccessfulRequests: true, // Don't count successful requests
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  skipSuccessfulRequests: true,
   handler: (req, res) => {
     logger.warn('Auth rate limit exceeded', {
       requestId: req.requestId,
@@ -42,7 +39,7 @@ const authLimiter = rateLimit({
       path: req.path,
       userAgent: req.get('User-Agent')
     });
-    
+
     res.status(429).json({
       success: false,
       message: 'Too many authentication attempts, please try again in 15 minutes'
@@ -50,77 +47,26 @@ const authLimiter = rateLimit({
   }
 });
 
-// API creation limiter (for creating bounties, submissions, etc.)
+// API creation limiter (bounties, submissions, etc.)
 const createLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // limit each IP to 20 create operations per hour
-  message: {
-    success: false,
-    message: 'Too many create operations, please try again later'
-  },
-  keyGenerator: (req) => {
-    // Use user ID if authenticated, otherwise IP
-    return req.user?.userId || req.ip;
-  },
-  handler: (req, res) => {
-    logger.warn('Create rate limit exceeded', {
-      requestId: req.requestId,
-      ip: req.ip,
-      userId: req.user?.userId,
-      path: req.path
-    });
-    
-    res.status(429).json({
-      success: false,
-      message: 'Too many create operations, please try again later'
-    });
-  }
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.user?.userId || ipKeyGenerator(req), // ✅ safe fallback
+  handler: buildHandler('create', (req) => ({ userId: req.user?.userId }))
 });
 
 // Password reset limiter
 const passwordResetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // limit each IP to 3 password reset attempts per hour
-  message: {
-    success: false,
-    message: 'Too many password reset attempts, please try again later'
-  },
-  handler: (req, res) => {
-    logger.warn('Password reset rate limit exceeded', {
-      requestId: req.requestId,
-      ip: req.ip,
-      email: req.body?.email,
-      path: req.path
-    });
-    
-    res.status(429).json({
-      success: false,
-      message: 'Too many password reset attempts, please try again in 1 hour'
-    });
-  }
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  handler: buildHandler('password reset', (req) => ({ email: req.body?.email }))
 });
 
-// Search limiter (more permissive but still limited)
+// Search limiter (more permissive)
 const searchLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 30, // limit each IP to 30 search requests per minute
-  message: {
-    success: false,
-    message: 'Too many search requests, please slow down'
-  },
-  handler: (req, res) => {
-    logger.warn('Search rate limit exceeded', {
-      requestId: req.requestId,
-      ip: req.ip,
-      searchTerm: req.query?.q,
-      path: req.path
-    });
-    
-    res.status(429).json({
-      success: false,
-      message: 'Too many search requests, please slow down'
-    });
-  }
+  windowMs: 1 * 60 * 1000,
+  max: 30,
+  handler: buildHandler('search', (req) => ({ searchTerm: req.query?.q }))
 });
 
 module.exports = {

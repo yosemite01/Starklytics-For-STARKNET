@@ -156,7 +156,4 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-module.exports = {
-  errorMiddleware,
-  AppError
-};
+module.exports = errorMiddleware;

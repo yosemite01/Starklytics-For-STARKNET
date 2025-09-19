@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { generateTokens } = require('../utils/generateTokens');
+const { generateTokens } = require('../utils/generateToken');
 const logger = require('../utils/logger');
 
 const authController = {
