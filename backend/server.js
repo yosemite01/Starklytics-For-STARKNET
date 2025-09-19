@@ -9,10 +9,21 @@ const MONGO_URI = process.env.MONGO_URI;
 
 let app;
 try {
-  app = require('./src/app');   // if this throws, we’ll see it
+  app = require('./src/app');
   console.log("✅ App loaded successfully");
 } catch (err) {
   console.error("❌ Error loading app.js:", err);
+  process.exit(1); // Exit if app fails to load
+}
+
+// Define root route (optional)
+if (app) {
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'Welcome to Starklytics API'
+    });
+  });
 }
 
 const startServer = async () => {

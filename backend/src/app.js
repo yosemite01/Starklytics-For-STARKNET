@@ -1,18 +1,16 @@
-require('dotenv').config({ debug: false });
+require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
-const xss = require('xss-clean');
 const { v4: uuidv4 } = require('uuid');
+const xss = require('xss');
 const mongoose = require('mongoose');
 
 const logger = require('./utils/logger');
-const rateLimiter = require('./utils/rateLimiter');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 
-// Routes
 const authRoutes = require('./routes/authRoutes');
 const bountyRoutes = require('./routes/bountyRoutes');
 
@@ -23,14 +21,12 @@ const app = express();
 ------------------------- */
 app.use(helmet());
 app.use(cors());
-app.use(mongoSanitize());
-app.use(xss());
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
+// Request logging
 app.use((req, res, next) => {
   req.requestId = uuidv4();
   logger.info(`${req.method} ${req.originalUrl}`, {
@@ -44,28 +40,70 @@ app.use((req, res, next) => {
 });
 
 /* ------------------------
-   Health Check Route
+   MongoDB Sanitization
+------------------------- */
+app.use((req, res, next) => {
+  const body = req.body ? { ...req.body } : {};
+  const query = req.query ? { ...req.query } : {};
+  const params = req.params ? { ...req.params } : {};
+
+  req.body = mongoSanitize.sanitize(body, { replaceWithEmptyObject: true });
+  req.query = mongoSanitize.sanitize(query, { replaceWithEmptyObject: true });
+  req.params = mongoSanitize.sanitize(params, { replaceWithEmptyObject: true });
+
+  next();
+});
+
+/* ------------------------
+   XSS Sanitization
+------------------------- */
+app.use((req, res, next) => {
+  const sanitizeObject = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    for (const key in obj) {
+      if (typeof obj[key] === 'string') obj[key] = xss(obj[key]);
+      else if (typeof obj[key] === 'object') obj[key] = sanitizeObject(obj[key]);
+    }
+    return obj;
+  };
+
+  req.body = sanitizeObject(req.body);
+  req.query = sanitizeObject(req.query);
+  req.params = sanitizeObject(req.params);
+
+  next();
+});
+
+/* ------------------------
+   Health Check
 ------------------------- */
 app.get('/health', (req, res) => {
-  const healthcheck = {
+  res.status(200).json({
     uptime: process.uptime(),
     message: 'OK',
     timestamp: new Date().toISOString(),
     database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
     environment: process.env.NODE_ENV || 'development',
-  };
-  res.status(200).json(healthcheck);
+  });
 });
 
 /* ------------------------
-   API Routes with Rate Limiters
+   API Routes
 ------------------------- */
-app.use('/api/auth', rateLimiter.auth, authRoutes);
-app.use('/api/bounties', rateLimiter.create, bountyRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/bounties', bountyRoutes);
 
 /* ------------------------
    404 Handler
 ------------------------- */
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Welcome to Starklytics API'
+  });
+});
+
 app.use((req, res) => {
   logger.warn(`Route not found: ${req.method} ${req.originalUrl}`, {
     requestId: req.requestId,
