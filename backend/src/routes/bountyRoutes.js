@@ -1,5 +1,6 @@
 const express = require('express');
 const bountyController = require('../controllers/bountyController');
+const statsController = require('../controllers/statsController');
 const authMiddleware = require('../middlewares/authMiddlewares');
 const validateMiddleware = require('../middlewares/validateMiddleware');
 const { 
@@ -33,11 +34,23 @@ router.use(authMiddleware.authenticate);
 // Authenticated user routes
 router.get('/user/my-bounties', bountyController.getMyBounties);
 
+// Join a bounty
+router.post('/:id/join', 
+  validateMiddleware(bountyParamsSchema, 'params'),
+  bountyController.joinBounty
+);
+
 // Submit to a bounty
 router.post('/:id/submit', 
   validateMiddleware(bountyParamsSchema, 'params'),
   validateMiddleware(submitToBountySchema), 
   bountyController.submitToBounty
+);
+
+// Select winner
+router.post('/:id/winner', 
+  validateMiddleware(bountyParamsSchema, 'params'),
+  bountyController.selectWinner
 );
 
 /* ------------------------
@@ -67,6 +80,9 @@ router.delete('/:id',
 /* ------------------------
    Admin-Only Routes
 ------------------------- */
+
+// Public stats
+router.get('/stats', statsController.getBountyStats);
 
 // Admin stats
 router.get('/admin/stats', 

@@ -6,11 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QueryEditor } from '@/components/query/QueryEditor';
 import { QueryVisualizer } from '@/components/query/QueryVisualizer';
-import { useData } from '@/contexts/DataContext';
 import { BarChart3, Database, TrendingUp, Plus } from 'lucide-react';
 
+interface Query {
+  id: string;
+  title: string;
+  results?: any[];
+}
+
 export default function Analytics() {
-  const { queries, activeQuery, setActiveQuery } = useData();
+  const [queries] = useState<Query[]>([]);
+  const [activeQuery, setActiveQuery] = useState<Query | null>(null);
   const [activeTab, setActiveTab] = useState('query');
 
   const handleQueryComplete = (results: any[]) => {

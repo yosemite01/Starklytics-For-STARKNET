@@ -23,7 +23,8 @@ import {
   Award,
   History
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Transaction {
   id: string;
@@ -39,26 +40,23 @@ export default function Profile() {
   const { user, profile, updateProfile, signOut } = useAuth();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
-    full_name: profile?.full_name || '',
-    username: profile?.username || '',
-    bio: profile?.bio || '',
-    wallet_address: profile?.wallet_address || '',
+    firstName: profile?.firstName || '',
+    lastName: profile?.lastName || '',
+    email: profile?.email || '',
     role: profile?.role || 'analyst',
   });
 
   useEffect(() => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name || '',
-        username: profile.username || '',
-        bio: profile.bio || '',
-        wallet_address: profile.wallet_address || '',
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        email: profile.email || '',
         role: profile.role || 'analyst',
       });
     }
@@ -69,39 +67,36 @@ export default function Profile() {
   }, [user]);
 
   const fetchTransactions = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setTransactions(data || []);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    }
+    // TODO: Implement transaction fetching from MongoDB backend
+    // For now, show empty state
+    setTransactions([]);
   };
 
   const handleSave = async () => {
     setLoading(true);
-    setError('');
-    setSuccess('');
 
     try {
       const { error } = await updateProfile(formData);
       
       if (error) {
-        setError(error.message);
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive",
+        });
       } else {
-        setSuccess('Profile updated successfully!');
+        toast({
+          title: "Success",
+          description: "Profile updated successfully!",
+        });
         setEditing(false);
       }
     } catch (error: any) {
-      setError(error.message);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -110,22 +105,20 @@ export default function Profile() {
   const handleCancel = () => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name || '',
-        username: profile.username || '',
-        bio: profile.bio || '',
-        wallet_address: profile.wallet_address || '',
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        email: profile.email || '',
         role: profile.role || 'analyst',
       });
     }
     setEditing(false);
-    setError('');
   };
 
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin':
         return 'bg-gradient-to-r from-purple-500 to-pink-500';
-      case 'bounty_creator':
+      case 'creator':
         return 'bg-gradient-to-r from-blue-500 to-cyan-500';
       case 'analyst':
         return 'bg-gradient-to-r from-green-500 to-emerald-500';
@@ -166,17 +159,7 @@ export default function Profile() {
         />
         
         <main className="flex-1 p-6 space-y-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
 
-          {success && (
-            <Alert>
-              <AlertDescription>{success}</AlertDescription>
-            </Alert>
-          )}
 
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Profile Information */}
@@ -221,79 +204,57 @@ export default function Profile() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="full_name">Full Name</Label>
+                      <Label htmlFor="firstName">First Name</Label>
                       <Input
-                        id="full_name"
-                        value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                         disabled={!editing}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
+                      <Label htmlFor="lastName">Last Name</Label>
                       <Input
-                        id="username"
-                        value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                         disabled={!editing}
                       />
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      value={formData.bio}
-                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                      disabled={!editing}
-                      placeholder="Tell us about yourself..."
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="wallet_address">Wallet Address</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="wallet_address"
-                      value={formData.wallet_address}
-                      onChange={(e) => setFormData({ ...formData, wallet_address: e.target.value })}
-                      disabled={!editing}
-                      placeholder="0x..."
+                      id="email"
+                      value={formData.email}
+                      disabled
+                      placeholder="Email cannot be changed"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
                     {editing ? (
-                      <div className="flex space-x-2">
-                        <Button
-                          type="button"
-                          variant={formData.role === 'analyst' ? 'default' : 'outline'}
-                          onClick={() => setFormData({ ...formData, role: 'analyst' })}
-                          className={formData.role === 'analyst' ? 'glow-primary' : ''}
-                        >
-                          Analyst
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={formData.role === 'bounty_creator' ? 'default' : 'outline'}
-                          onClick={() => setFormData({ ...formData, role: 'bounty_creator' })}
-                          className={formData.role === 'bounty_creator' ? 'glow-primary' : ''}
-                        >
-                          Bounty Creator
-                        </Button>
-                      </div>
+                      <Select value={formData.role} onValueChange={(value: any) => setFormData({ ...formData, role: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="analyst">Analyst</SelectItem>
+                          <SelectItem value="creator">Creator</SelectItem>
+                          {profile?.role === 'admin' && (
+                            <SelectItem value="admin">Admin</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <Badge className={`${getRoleColor(formData.role)} text-white border-0`}>
-                        {formData.role.replace('_', ' ').toUpperCase()}
+                        {formData.role.toUpperCase()}
                       </Badge>
                     )}
                   </div>
-                  <div className="pt-4">
-                    <Label>Email</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
-                  </div>
+
                 </CardContent>
               </Card>
 
@@ -365,7 +326,7 @@ export default function Profile() {
                     <div className="flex items-center space-x-1">
                       <TrendingUp className="w-4 h-4 text-chart-success" />
                       <span className="font-semibold text-chart-success">
-                        {profile.total_earnings} STRK
+                        0 STRK
                       </span>
                     </div>
                   </div>
@@ -375,32 +336,17 @@ export default function Profile() {
                     <div className="flex items-center space-x-1">
                       <Star className="w-4 h-4 text-chart-warning" />
                       <span className="font-semibold">
-                        {profile.reputation_score}
+                        0
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Verified</span>
-                    <Badge variant={profile.email_verified ? 'secondary' : 'outline'}>
-                      {profile.email_verified ? 'Verified' : 'Unverified'}
+                    <span className="text-sm text-muted-foreground">Account Status</span>
+                    <Badge variant="secondary">
+                      Active
                     </Badge>
                   </div>
-
-                  {profile.wallet_address && (
-                    <>
-                      <Separator />
-                      <div className="space-y-2">
-                        <span className="text-sm text-muted-foreground flex items-center">
-                          <Wallet className="w-4 h-4 mr-1" />
-                          Connected Wallet
-                        </span>
-                        <p className="text-xs font-mono bg-muted/30 p-2 rounded break-all">
-                          {profile.wallet_address}
-                        </p>
-                      </div>
-                    </>
-                  )}
                 </CardContent>
               </Card>
 

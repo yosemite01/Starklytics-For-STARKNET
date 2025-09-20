@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { testSupabaseConnection } from '@/utils/testConnection';
 import { validateEmail, validatePassword, sanitizeInput } from '@/utils/validation';
 import { handleSupabaseError, getUserFriendlyMessage } from '@/utils/errorHandler';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
@@ -19,11 +18,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [connectionStatus, setConnectionStatus] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    testSupabaseConnection().then(setConnectionStatus);
-  }, []);
+  const [connectionStatus] = useState<boolean>(true);
 
   // Sign in form
   const [signInEmail, setSignInEmail] = useState('');
@@ -153,14 +148,7 @@ export default function Auth() {
                 </TabsTrigger>
               </TabsList>
 
-              {connectionStatus === false && (
-                <Alert variant="default" className="mb-4 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
-                  <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                    Running in demo mode - all features available without backend connection!
-                  </AlertDescription>
-                </Alert>
-              )}
+
 
               {error && (
                 <Alert variant="destructive" className="mb-4">

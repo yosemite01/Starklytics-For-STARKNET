@@ -9,7 +9,7 @@ export function AIFloatingButton({ onClick }: AIFloatingButtonProps) {
   return (
     <Button
       onClick={onClick}
-      className="fixed bottom-4 right-4 w-12 h-12 rounded-full shadow-lg z-40 animate-pulse-glow"
+      className="fixed bottom-4 right-4 w-14 h-14 rounded-full glow-primary z-40 shadow-lg"
       size="icon"
     >
       <MessageCircle className="w-6 h-6" />

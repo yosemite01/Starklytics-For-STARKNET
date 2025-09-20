@@ -1,49 +1,37 @@
 // AutoSwappr integration for bounty deposits and payouts
-// NOTE: Never expose private keys in frontend code. This is for backend/server-side use only.
+// NOTE: This file is for reference only. Actual AutoSwappr integration
+// should be implemented on the backend for security.
 
-import { AutoSwappr, TOKEN_ADDRESSES } from 'autoswappr-sdk';
+// Frontend should only call backend endpoints for:
+// - /api/bounties/:id/deposit
+// - /api/bounties/:id/payout
 
-const AUTOSWAPPR_CONTRACT_ADDRESS = '0x05582ad635c43b4c14dbfa53cbde0df32266164a0d1b36e5b510e5b34aeb364b';
-const RPC_URL = 'https://starknet-mainnet.public.blastapi.io';
+export const AUTOSWAPPR_CONFIG = {
+  CONTRACT_ADDRESS: '0x05582ad635c43b4c14dbfa53cbde0df32266164a0d1b36e5b510e5b34aeb364b',
+  RPC_URL: 'https://starknet-mainnet.public.blastapi.io',
+};
 
-// Example: Initialize with environment variables (for backend use)
-export function getAutoSwappr(accountAddress: string, privateKey: string) {
-  return new AutoSwappr({
-    contractAddress: AUTOSWAPPR_CONTRACT_ADDRESS,
-    rpcUrl: RPC_URL,
-    accountAddress,
-    privateKey,
+// These functions should be implemented on the backend
+export interface AutoSwapprService {
+  depositBounty(bountyId: string, amount: string, fromToken: string, toToken: string): Promise<string>;
+  payoutWinner(bountyId: string, winnerId: string, amount: string): Promise<string>;
+}
+
+// Frontend helper to call backend AutoSwappr endpoints
+export async function callAutoSwapprDeposit(bountyId: string, amount: string, fromToken = 'USDC', toToken = 'STRK') {
+  const response = await fetch(`/api/bounties/${bountyId}/deposit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount, fromToken, toToken })
   });
+  return response.json();
 }
 
-// Example: Deposit (stake) tokens when creating a bounty
-export async function depositBounty(
-  accountAddress: string,
-  privateKey: string,
-  amount: string,
-  fromToken: keyof typeof TOKEN_ADDRESSES = 'USDC',
-  toToken: keyof typeof TOKEN_ADDRESSES = 'STRK'
-) {
-  const autoswappr = getAutoSwappr(accountAddress, privateKey);
-  return autoswappr.executeSwap(
-    TOKEN_ADDRESSES[fromToken],
-    TOKEN_ADDRESSES[toToken],
-    { amount }
-  );
-}
-
-// Example: Payout winner using AutoSwappr
-export async function payoutWinner(
-  accountAddress: string,
-  privateKey: string,
-  amount: string,
-  fromToken: keyof typeof TOKEN_ADDRESSES = 'STRK',
-  toToken: keyof typeof TOKEN_ADDRESSES = 'USDC'
-) {
-  const autoswappr = getAutoSwappr(accountAddress, privateKey);
-  return autoswappr.executeSwap(
-    TOKEN_ADDRESSES[fromToken],
-    TOKEN_ADDRESSES[toToken],
-    { amount }
-  );
+export async function callAutoSwapprPayout(bountyId: string, winnerId: string) {
+  const response = await fetch(`/api/bounties/${bountyId}/payout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ winnerId })
+  });
+  return response.json();
 }

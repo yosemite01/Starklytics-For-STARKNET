@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
@@ -13,10 +13,28 @@ import { LiveChart } from "@/components/ui/chart";
 import { AIDataInterpreter } from "@/components/ai/AIDataInterpreter";
 import { AIChatBox } from "@/components/ai/AIChatBox";
 import { AIFloatingButton } from "@/components/ai/AIFloatingButton";
+import { bountyService, type Bounty } from "@/services/BountyService";
 
 const Index = () => {
   const [rpcData, setRpcData] = useState<any>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [recentBounties, setRecentBounties] = useState<Bounty[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRecentBounties = async () => {
+      try {
+        const bounties = await bountyService.getBounties({ limit: 3 });
+        setRecentBounties(bounties);
+      } catch (error) {
+        console.error('Error fetching recent bounties:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecentBounties();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -98,21 +116,31 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { title: "Starknet DeFi TVL Analysis", reward: "500 STRK", status: "Active" },
-                    { title: "Transaction Fee Optimization", reward: "750 STRK", status: "Completed" },
-                    { title: "NFT Market Analytics", reward: "300 STRK", status: "Active" },
-                  ].map((bounty, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/20 transition-all">
-                      <div>
-                        <h4 className="font-medium">{bounty.title}</h4>
-                        <p className="text-sm text-muted-foreground">Reward: {bounty.reward}</p>
-                      </div>
-                      <Badge variant={bounty.status === "Active" ? "default" : "secondary"}>
-                        {bounty.status}
-                      </Badge>
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-sm text-muted-foreground mt-2">Loading bounties...</p>
                     </div>
-                  ))}
+                  ) : recentBounties.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Award className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">No bounties available yet</p>
+                    </div>
+                  ) : (
+                    recentBounties.map((bounty) => (
+                      <div key={bounty._id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/20 transition-all">
+                        <div>
+                          <h4 className="font-medium">{bounty.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Reward: {bounty.reward.amount} {bounty.reward.currency}
+                          </p>
+                        </div>
+                        <Badge variant={bounty.status === "active" ? "default" : "secondary"}>
+                          {bounty.status.charAt(0).toUpperCase() + bounty.status.slice(1)}
+                        </Badge>
+                      </div>
+                    ))
+                  )}
                 </div>
                 <div className="mt-4">
                   <Button className="w-full" asChild>

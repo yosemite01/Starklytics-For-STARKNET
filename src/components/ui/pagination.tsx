@@ -43,20 +43,33 @@ const PaginationLink = ({
   className,
   isActive,
   size = "icon",
+  href,
+  children,
+  onClick,
   ...props
-}: PaginationLinkProps) => (
-  <a
-    aria-current={isActive ? "page" : undefined}
-    className={cn(
-      buttonVariants({
-        variant: isActive ? "outline" : "ghost",
-        size,
-      }),
-      className
-    )}
-    {...props}
-  />
-)
+}: PaginationLinkProps) => {
+  const safeProps = {
+    href,
+    onClick,
+    'aria-label': props['aria-label']
+  };
+  
+  return (
+    <a
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        buttonVariants({
+          variant: isActive ? "outline" : "ghost",
+          size,
+        }),
+        className
+      )}
+      {...safeProps}
+    >
+      {children}
+    </a>
+  );
+}
 PaginationLink.displayName = "PaginationLink"
 
 const PaginationPrevious = ({

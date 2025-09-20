@@ -78,7 +78,7 @@
   }
 
   .light {
-    /* Light theme fallback (analytics apps typically use dark) */
+    /* Light theme for analytics platform */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -87,6 +87,7 @@
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 263 85% 55%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 263 95% 65%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -98,6 +99,20 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 263 85% 55%;
+    
+    /* Sidebar light theme */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 263 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 222.2 84% 4.9%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 263 85% 55%;
+    
+    /* Glass morphism for light theme */
+    --glass-bg: hsla(var(--background) / 0.9);
+    --glass-border: hsla(var(--border) / 0.5);
   }
 }
 
@@ -133,7 +148,28 @@
   .glass {
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Enhanced glass effect for cards */
+  .glass-card {
+    background: linear-gradient(135deg, 
+      hsla(var(--background) / 0.9), 
+      hsla(var(--background) / 0.7)
+    );
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsla(var(--border) / 0.4);
+    box-shadow: 
+      0 8px 32px hsla(var(--background) / 0.3),
+      inset 0 1px 0 hsla(255, 255, 255, 0.1);
+  }
+  
+  /* Ensure proper theme transitions */
+  * {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
   }
 
   /* Glow effects */
@@ -172,6 +208,19 @@
 @keyframes pulseGlow {
   0%, 100% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
   50% { box-shadow: 0 0 40px hsl(var(--primary) / 0.6); }
+}
+
+/* Sidebar layout fixes */
+@media (max-width: 1023px) {
+  .sidebar-mobile {
+    transform: translateX(-100%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .sidebar-mobile {
+    transform: translateX(0);
+  }
 }
 
 @layer base {

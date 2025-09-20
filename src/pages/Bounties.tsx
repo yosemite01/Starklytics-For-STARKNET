@@ -7,38 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Clock, DollarSign, Users, Plus } from "lucide-react";
-import { supabase } from '@/integrations/supabase/client';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { handleSupabaseError, getUserFriendlyMessage } from '@/utils/errorHandler';
 import { useToast } from '@/components/ui/use-toast';
+import { bountyService, type Bounty, type BountyStats } from '@/services/BountyService';
 
-interface Bounty {
-  id: string;
-  title: string;
-  description: string;
-  reward_amount: number;
-  reward_token: string;
-  deadline: string | null;
-  status: string;
-  current_participants: number;
-  max_participants: number | null;
-  difficulty: string;
-  creator_id: string;
-}
 
-interface Stats {
-  activeBounties: number;
-  totalRewards: number;
-  activeParticipants: number;
-  completedThisMonth: number;
-}
 
 const Bounties = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [bounties, setBounties] = useState<Bounty[]>([]);
-  const [stats, setStats] = useState<Stats>({
+  const [stats, setStats] = useState<BountyStats>({
+    totalBounties: 0,
     activeBounties: 0,
+    completedBounties: 0,
     totalRewards: 0,
     activeParticipants: 0,
     completedThisMonth: 0
@@ -52,19 +34,13 @@ const Bounties = () => {
 
   const fetchBounties = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bounties')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setBounties(data || []);
+      const data = await bountyService.getBounties({ status: 'active' });
+      setBounties(data);
     } catch (error: any) {
       console.error('Error fetching bounties:', error);
       toast({
         title: "Error loading bounties",
-        description: getUserFriendlyMessage(handleSupabaseError(error)),
+        description: error.message || 'Failed to load bounties',
         variant: "destructive",
       });
     } finally {
@@ -74,47 +50,13 @@ const Bounties = () => {
 
   const fetchStats = async () => {
     try {
-      // Get active bounties count
-      const { count: activeBountiesCount } = await supabase
-        .from('bounties')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
-
-      // Get total rewards
-      const { data: rewardsData } = await supabase
-        .from('bounties')
-        .select('reward_amount')
-        .eq('status', 'active');
-
-      const totalRewards = rewardsData?.reduce((sum, bounty) => sum + bounty.reward_amount, 0) || 0;
-
-      // Get active participants count
-      const { count: participantsCount } = await supabase
-        .from('bounty_participants')
-        .select('*', { count: 'exact', head: true });
-
-      // Get completed this month
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const { count: completedThisMonthCount } = await supabase
-        .from('bounties')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'completed')
-        .gte('updated_at', startOfMonth.toISOString());
-
-      setStats({
-        activeBounties: activeBountiesCount || 0,
-        totalRewards: totalRewards,
-        activeParticipants: participantsCount || 0,
-        completedThisMonth: completedThisMonthCount || 0
-      });
+      const data = await bountyService.getStats();
+      setStats(data);
     } catch (error: any) {
       console.error('Error fetching stats:', error);
       toast({
         title: "Error loading statistics",
-        description: getUserFriendlyMessage(handleSupabaseError(error)),
+        description: error.message || 'Failed to load statistics',
         variant: "destructive",
       });
     }
@@ -124,28 +66,26 @@ const Bounties = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('bounty_participants')
-        .insert([{
-          bounty_id: bountyId,
-          participant_id: user.id
-        }]);
-
-      if (error) throw error;
-
+      await bountyService.joinBounty(bountyId);
+      
+      toast({
+        title: "Success",
+        description: "Successfully joined bounty",
+      });
+      
       // Refresh bounties to update participant count
       fetchBounties();
     } catch (error: any) {
       console.error('Error joining bounty:', error);
       toast({
         title: "Error joining bounty",
-        description: getUserFriendlyMessage(handleSupabaseError(error)),
+        description: error.message || 'Failed to join bounty',
         variant: "destructive",
       });
     }
   };
 
-  const formatDeadline = (deadline: string | null) => {
+  const formatDeadline = (deadline: Date | undefined) => {
     if (!deadline) return 'No deadline';
     return new Date(deadline).toLocaleDateString();
   };
@@ -153,7 +93,7 @@ const Bounties = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
-      <div className="ml-64">
+      <div className="lg:ml-64">
           <Header 
             title="Analytics Bounties" 
             subtitle="Contribute to Starknet analytics and earn rewards"
@@ -209,7 +149,7 @@ const Bounties = () => {
             </div>
 
             {/* Create Bounty CTA */}
-            {profile?.role === 'bounty_creator' || profile?.role === 'admin' ? (
+            {profile?.role === 'creator' || profile?.role === 'admin' ? (
               <Card className="glass border-primary/20">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -248,7 +188,7 @@ const Bounties = () => {
             ) : (
               <div className="space-y-4">
                 {bounties.map((bounty) => (
-                  <Card key={bounty.id} className="glass hover:shadow-elevated transition-all">
+                  <Card key={bounty._id} className="glass hover:shadow-elevated transition-all">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="space-y-2">
@@ -269,7 +209,7 @@ const Bounties = () => {
                           <div className="flex items-center space-x-2">
                             <DollarSign className="w-4 h-4 text-chart-success" />
                             <span className="font-semibold text-chart-success">
-                              {bounty.reward_amount} {bounty.reward_token}
+                              {bounty.reward.amount} {bounty.reward.currency}
                             </span>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -281,20 +221,19 @@ const Bounties = () => {
                           <div className="flex items-center space-x-2">
                             <Users className="w-4 h-4 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">
-                              {bounty.current_participants} participant{bounty.current_participants !== 1 ? 's' : ''}
-                              {bounty.max_participants ? ` / ${bounty.max_participants}` : ''}
+                              {bounty.submissions.length} submission{bounty.submissions.length !== 1 ? "s" : ""}
                             </span>
                           </div>
                           <Badge variant="outline" className="text-xs capitalize">
-                            {bounty.difficulty}
+                            {bounty.priority}
                           </Badge>
                         </div>
                         <Button 
-                          onClick={() => handleJoinBounty(bounty.id)}
-                          disabled={bounty.status !== "active" || bounty.creator_id === user?.id}
+                          onClick={() => handleJoinBounty(bounty._id)}
+                          disabled={bounty.status !== "active" || bounty.createdBy === user?._id}
                           className={bounty.status === "active" ? "glow-primary" : ""}
                         >
-                          {bounty.creator_id === user?.id ? "Your Bounty" : 
+                          {bounty.createdBy === user?._id ? "Your Bounty" : 
                            bounty.status === "active" ? "Join Bounty" : "View Results"}
                         </Button>
                       </div>

@@ -1,26 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { QueryService } from '@/integrations/supabase/query.service';
-import type { SavedQuery } from '@/integrations/supabase/query.types';
 import { Chart } from '../ui/chart';
 import { Table } from '../ui/table';
 
+interface SavedQuery {
+  id: string;
+  title: string;
+  query_text: string;
+  results?: any[];
+  metadata?: any;
+}
+
 interface DashboardWidgetProps {
-  type: 'chart' | 'table' | 'pie' | 'line';
+  type: 'chart' | 'table' | 'pie' | 'line' | 'bar' | 'area';
   query: SavedQuery;
   title: string;
+  xAxis?: string;
+  yAxis?: string;
+  aggregation?: string;
   onRemove?: () => void;
 }
 
-const queryService = new QueryService();
-
-export function DashboardWidget({ type: defaultType, query, title, onRemove }: DashboardWidgetProps) {
+export function DashboardWidget({ type: defaultType, query, title, xAxis, yAxis, aggregation, onRemove }: DashboardWidgetProps) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [visualConfig, setVisualConfig] = useState<any>(null);
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadData = () => {
       try {
         setLoading(true);
         // Get visualization config from query metadata
@@ -28,9 +35,9 @@ export function DashboardWidget({ type: defaultType, query, title, onRemove }: D
           setVisualConfig(query.metadata.visualization);
         }
         
-        const result = await queryService.runQuery(query.id, query.query_text);
-        if (result) {
-          setData(result.results);
+        // Use query results if available
+        if (query.results) {
+          setData(query.results);
         }
       } catch (error) {
         console.error('Error loading widget data:', error);
@@ -40,13 +47,6 @@ export function DashboardWidget({ type: defaultType, query, title, onRemove }: D
     };
 
     loadData();
-
-    // Subscribe to real-time updates
-    const unsubscribe = queryService.subscribeToQueryResults(query.id, (result) => {
-      setData(result.results);
-    });
-
-    return () => unsubscribe();
   }, [query]);
 
   const renderContent = () => {

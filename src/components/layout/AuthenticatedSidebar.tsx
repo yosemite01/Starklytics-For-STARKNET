@@ -18,15 +18,19 @@ import {
   Plus,
   LogOut,
   FileBarChart,
-  Activity
+  Activity,
+  Book
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Analytics Workspace", href: "/analytics", icon: BarChart3 },
+  { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  { name: "Query Editor", href: "/query", icon: Database },
   { name: "Dashboard Builder", href: "/builder", icon: Layout },
+  { name: "Data Visualization", href: "/charts", icon: FileBarChart },
   { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
   { name: "Bounties", href: "/bounties", icon: Trophy },
+  { name: "Wallet", href: "/wallet", icon: Wallet },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -51,13 +55,18 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
       return;
     }
 
-    const detectedWallets = detectWallets();
-    if (detectedWallets.argent) {
-      await connectWallet('argent');
-    } else if (detectedWallets.ready) {
-      await connectWallet('ready');
-    } else {
-      // If no wallet is detected, still navigate to wallet page where they can see installation options
+    try {
+      const detectedWallets = detectWallets();
+      if (detectedWallets.argent) {
+        await connectWallet('argent');
+      } else if (detectedWallets.ready) {
+        await connectWallet('ready');
+      } else {
+        // If no wallet is detected, still navigate to wallet page where they can see installation options
+        navigate('/wallet');
+      }
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
       navigate('/wallet');
     }
   };
@@ -65,21 +74,20 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
   return (
     <div
       className={cn(
-        "fixed left-0 top-0 h-screen glass border-r bg-card text-card-foreground transition-all duration-300 z-40",
-        "lg:translate-x-0 -translate-x-full lg:static lg:transform-none",
+        "sidebar-mobile fixed left-0 top-0 h-screen glass-card border-r border-border/30 text-card-foreground transition-all duration-300 z-40 shadow-2xl",
         collapsed ? "w-16" : "w-64",
         className
       )}
     >
       <div className="flex h-full flex-col">
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-border">
+        <div className="flex h-16 items-center justify-between px-4 border-b border-border/30 bg-gradient-to-r from-primary/5 to-accent/5">
           {!collapsed && (
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center shadow-lg">
                 <BarChart3 className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 Starklytics
               </span>
             </div>
@@ -122,10 +130,10 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
                 key={item.name}
                 to={item.href}
                 className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group",
+                  "flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-glow"
-                    : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                    ? "bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg shadow-primary/25"
+                    : "text-muted-foreground hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 hover:text-foreground hover:shadow-md"
                 )}
               >
                 <item.icon
@@ -139,29 +147,6 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
             );
           })}
 
-          {/* Wallet and Profile Actions */}
-          <div className="pt-4">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={handleWalletClick}
-            >
-              <Wallet className="w-5 h-5 mr-3" />
-              {!collapsed && (
-                <span>{isConnected ? 'Connected Wallet' : 'Connect Wallet'}</span>
-              )}
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full justify-start mt-2"
-              onClick={handleProfileClick}
-            >
-              <User className="w-5 h-5 mr-3" />
-              {!collapsed && <span>Profile</span>}
-            </Button>
-          </div>
-
           {/* Quick Actions */}
           {!collapsed && (
             <div className="pt-4">
@@ -172,52 +157,58 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
               </div>
               <Link
                 to="/create-bounty"
-                className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-muted-foreground hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 hover:text-foreground hover:shadow-md"
               >
                 <Plus className="w-5 h-5 transition-colors text-muted-foreground group-hover:text-primary" />
                 <span>Create Bounty</span>
-              </Link>
-              <Link
-                to="/profile"
-                className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-              >
-                <User className="w-5 h-5 transition-colors text-muted-foreground group-hover:text-primary" />
-                <span>Profile</span>
               </Link>
             </div>
           )}
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border space-y-3">
-          {!collapsed && profile && (
-            <div className="flex items-center space-x-3 px-3 py-2">
-              <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-                <span className="text-xs font-semibold text-primary-foreground">
-                  {profile.full_name?.charAt(0) || profile.username?.charAt(0) || 'U'}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {profile.full_name || profile.username || 'Analytics User'}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {user?.email}
-                </p>
+        <div className="p-4 border-t border-border/30 bg-gradient-to-r from-primary/5 to-accent/5 space-y-3">
+          {!collapsed && (
+            <div className="space-y-2">
+              {profile && (
+                <div className="flex items-center space-x-3 px-3 py-2.5 cursor-pointer hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 rounded-xl transition-all duration-200 hover:shadow-md" onClick={handleProfileClick}>
+                  <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center shadow-lg ring-2 ring-primary/20">
+                    <span className="text-xs font-semibold text-primary-foreground">
+                      {profile.full_name?.charAt(0) || profile.username?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {profile.full_name || profile.username || 'Analytics User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user?.email}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleWalletClick}
+                  className="flex-1 justify-start hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 transition-all duration-200"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  {isConnected ? 'Wallet' : 'Connect'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={signOut}
+                  className="flex-1 justify-start border-border/50 hover:bg-gradient-to-r hover:from-destructive/10 hover:to-destructive/5 hover:border-destructive/30 transition-all duration-200"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
               </div>
             </div>
-          )}
-          
-          {!collapsed && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={signOut}
-              className="w-full justify-start"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
           )}
         </div>
       </div>
