@@ -109,6 +109,31 @@ const updateRoleSchema = z.object({
   })
 }).strict();
 
+// Google OAuth authentication schema
+const googleAuthSchema = z.object({
+  token: z
+    .string()
+    .min(1, { message: 'Google ID token is required' })
+    .max(2000, { message: 'Google token is too long' }),
+  role: roleSchema
+}).strict();
+
+// Link Google account schema
+const linkGoogleAccountSchema = z.object({
+  token: z
+    .string()
+    .min(1, { message: 'Google ID token is required' })
+    .max(2000, { message: 'Google token is too long' })
+}).strict();
+
+// Unlink Google account schema
+const unlinkGoogleAccountSchema = z.object({
+  password: z
+    .string()
+    .min(1, { message: 'Password is required to unlink Google account' })
+    .max(128, { message: 'Password cannot exceed 128 characters' })
+}).strict();
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -117,5 +142,8 @@ module.exports = {
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  updateRoleSchema
+  updateRoleSchema,
+  googleAuthSchema,
+  linkGoogleAccountSchema,
+  unlinkGoogleAccountSchema
 };
