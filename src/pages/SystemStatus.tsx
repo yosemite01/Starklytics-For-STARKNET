@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, AlertCircle, RefreshCw, Database, Network, Shield } from "lucide-react";
-import { testSupabaseConnection, testRpcConnection } from "@/utils/testConnection";
+import { apiClient } from '@/lib/api';
 import { StarknetDataService } from "@/services/StarknetDataService";
 
 interface SystemCheck {
@@ -26,11 +26,12 @@ export default function SystemStatus() {
 
     // Database Connection
     try {
-      const dbStatus = await testSupabaseConnection();
+      const response = await fetch('/api/health');
+      const dbStatus = response.ok;
       results.push({
         name: 'Database Connection',
         status: dbStatus ? 'healthy' : 'error',
-        message: dbStatus ? 'Supabase connection successful' : 'Database connection failed'
+        message: dbStatus ? 'MongoDB connection successful' : 'Database connection failed'
       });
     } catch (error) {
       results.push({
@@ -42,14 +43,14 @@ export default function SystemStatus() {
 
     // RPC Connection
     try {
-      const rpcResults = await testRpcConnection();
-      const hasWorkingRpc = Object.values(rpcResults).some(r => r.status);
+      const dataService = new StarknetDataService();
+      await dataService.getNetworkStats();
+      const hasWorkingRpc = !dataService.isUsingFallback();
       
       results.push({
         name: 'Starknet RPC',
         status: hasWorkingRpc ? 'healthy' : 'warning',
-        message: hasWorkingRpc ? 'RPC connection active' : 'Using fallback data simulation',
-        details: rpcResults
+        message: hasWorkingRpc ? 'RPC connection active' : 'Using fallback data simulation'
       });
     } catch (error) {
       results.push({
@@ -82,11 +83,11 @@ export default function SystemStatus() {
 
     // Authentication
     try {
-      const authCheck = localStorage.getItem('supabase.auth.token') !== null;
+      const authCheck = localStorage.getItem('auth_token') !== null;
       results.push({
         name: 'Authentication',
         status: 'healthy',
-        message: authCheck ? 'Auth system operational' : 'Auth system ready'
+        message: authCheck ? 'JWT auth system operational' : 'Auth system ready'
       });
     } catch (error) {
       results.push({

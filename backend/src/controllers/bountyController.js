@@ -397,6 +397,47 @@ const bountyController = {
         searchTerm
       }
     });
+  },
+
+  // Join bounty
+  async joinBounty(req, res) {
+    const { id } = req.params;
+    
+    const bounty = await Bounty.findById(id);
+    if (!bounty) {
+      return res.status(404).json({ success: false, message: 'Bounty not found' });
+    }
+
+    if (bounty.createdBy.toString() === req.user.userId) {
+      return res.status(400).json({ success: false, message: 'Cannot join your own bounty' });
+    }
+
+    if (bounty.status !== 'active') {
+      return res.status(400).json({ success: false, message: 'Bounty is not active' });
+    }
+
+    res.json({ success: true, message: 'Ready to submit solution' });
+  },
+
+  // Select winner
+  async selectWinner(req, res) {
+    const { id } = req.params;
+    const { winnerId } = req.body;
+    
+    const bounty = await Bounty.findById(id);
+    if (!bounty) {
+      return res.status(404).json({ success: false, message: 'Bounty not found' });
+    }
+
+    if (bounty.createdBy.toString() !== req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Only bounty creator can select winner' });
+    }
+
+    bounty.assignedTo = winnerId;
+    bounty.status = 'completed';
+    await bounty.save();
+
+    res.json({ success: true, message: 'Winner selected successfully' });
   }
 };
 

@@ -157,7 +157,7 @@ export default function ContractEventsEDA() {
     setEvents([]);
     
     try {
-      console.log('Fetching events for contract:', address);
+      console.log('Fetching events for contract:', address?.replace(/[\r\n]/g, '').slice(0, 66));
       const evs = await fetchEvents(address.trim());
       console.log('Events found:', evs.length);
       

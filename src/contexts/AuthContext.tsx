@@ -1,27 +1,25 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/lib/api';
 
-interface Profile {
-  id: string;
-  username?: string;
-  full_name?: string;
-  avatar_url?: string;
-  bio?: string;
-  role: 'analyst' | 'bounty_creator' | 'admin';
-  wallet_address?: string;
-  email_verified: boolean;
-  onboarding_completed: boolean;
-  total_earnings: number;
-  reputation_score: number;
+interface User {
+  _id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: 'admin' | 'creator' | 'analyst';
+  isActive: boolean;
+  lastLogin?: Date;
+}
+
+interface Profile extends User {
+  fullName?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, userData?: { full_name?: string; username?: string; role?: 'analyst' | 'bounty_creator' }) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
@@ -43,67 +41,60 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
+      const storedUser = localStorage.getItem('demo_user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        setProfile({ ...userData, fullName: `${userData.firstName} ${userData.lastName}` });
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
   };
 
   useEffect(() => {
-    // DEMO MODE - Check for stored demo session
-    const demoUser = localStorage.getItem('demo_user');
-    const demoProfile = localStorage.getItem('demo_profile');
-    
-    if (demoUser && demoProfile) {
-      setUser(JSON.parse(demoUser));
-      setProfile(JSON.parse(demoProfile));
-    }
-    
-    setLoading(false);
+    const initAuth = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          await fetchProfile();
+        }
+      } catch (error) {
+        console.error('Error loading session:', error);
+        apiClient.clearToken();
+      }
+      
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
-  const signUp = async (email: string, password: string, userData?: { full_name?: string; username?: string; role?: 'analyst' | 'bounty_creator' }) => {
-    // DEMO MODE - Instant login without real authentication
+  const signUp = async (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => {
     try {
-      const demoUser = {
-        id: `demo-${Date.now()}`,
+      // Demo mode - create user locally
+      const newUser: User = {
+        _id: Date.now().toString(),
         email,
-        user_metadata: userData
+        firstName: userData?.firstName || 'Demo',
+        lastName: userData?.lastName || 'User',
+        role: userData?.role === 'creator' ? 'creator' : 'analyst',
+        isActive: true,
+        lastLogin: new Date()
       };
       
-      const demoProfile = {
-        id: demoUser.id,
-        username: userData?.username || email.split('@')[0],
-        full_name: userData?.full_name || '',
-        role: userData?.role || 'analyst',
-        email_verified: true,
-        onboarding_completed: true,
-        total_earnings: 0,
-        reputation_score: 0
-      };
+      const token = `demo_token_${Date.now()}`;
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('demo_user', JSON.stringify(newUser));
       
-      // Store demo session
-      localStorage.setItem('demo_user', JSON.stringify(demoUser));
-      localStorage.setItem('demo_profile', JSON.stringify(demoProfile));
+      setUser(newUser);
+      setProfile({ ...newUser, fullName: `${newUser.firstName} ${newUser.lastName}` });
       
-      // Set state
-      setUser(demoUser as any);
-      setProfile(demoProfile);
-      
-      // Redirect
       setTimeout(() => {
         window.location.href = '/';
       }, 100);
@@ -115,20 +106,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signIn = async (email: string, password: string) => {
-    // DEMO MODE - Instant login
-    return await signUp(email, password, {
-      full_name: email.split('@')[0],
-      username: email.split('@')[0],
-      role: 'analyst'
-    });
+    try {
+      // Demo mode - accept any credentials
+      const demoUser: User = {
+        _id: 'demo_user_123',
+        email,
+        firstName: 'Demo',
+        lastName: 'User',
+        role: email.includes('creator') ? 'creator' : 'analyst',
+        isActive: true,
+        lastLogin: new Date()
+      };
+      
+      const token = `demo_token_${Date.now()}`;
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('demo_user', JSON.stringify(demoUser));
+      
+      setUser(demoUser);
+      setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
+      
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   };
 
   const signOut = async () => {
-    // DEMO MODE - Clear demo session
-    localStorage.removeItem('demo_user');
-    localStorage.removeItem('demo_profile');
+    apiClient.clearToken();
     setUser(null);
-    setSession(null);
     setProfile(null);
     window.location.href = '/auth';
   };
@@ -137,25 +142,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!user) return { error: 'No user found' };
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      // Refresh profile data
-      await fetchProfile(user.id);
+      const updatedUser = { ...user, ...updates };
+      localStorage.setItem('demo_user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      setProfile({ ...updatedUser, fullName: `${updatedUser.firstName} ${updatedUser.lastName}` });
       
       return { error: null };
     } catch (error: any) {
+      console.error('Error updating profile:', error);
       return { error };
     }
   };
 
   const value = {
     user,
-    session,
     profile,
     loading,
     signUp,

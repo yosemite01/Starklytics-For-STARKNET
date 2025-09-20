@@ -9,21 +9,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import type { Json } from "@/integrations/supabase/database.types";
-import type { DashboardsInsert } from '@/integrations/supabase/dashboard.types';
-import { QueryService } from '@/integrations/supabase/query.service';
-import type { SavedQuery } from '@/types/query.types';
+interface SavedQuery {
+  id: string;
+  title: string;
+  description?: string;
+  query_text: string;
+  results?: any[];
+}
 import { Plus, BarChart3, PieChart, LineChart, Table, Save, Eye, Grid, Layout, History, Download } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import "react-grid-layout/css/styles.css";
-// The resizable styles are included in react-grid-layout
+import "react-resizable/css/styles.css";
 
 // Constants
-const RPC_ENDPOINT = "https://36c4832f2e9b.ngrok-free.app";
+const RPC_ENDPOINT = import.meta.env.VITE_STARKNET_RPC_URL || "https://starknet-mainnet.reddio.com/rpc/v0_7";
 
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
@@ -64,21 +66,7 @@ interface Layout {
   xxs: LayoutItem[];
 }
 
-interface SerializedLayoutItem {
-  i: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-interface SerializedLayout {
-  lg: SerializedLayoutItem[];
-  md: SerializedLayoutItem[];
-  sm: SerializedLayoutItem[];
-  xs: SerializedLayoutItem[];
-  xxs: SerializedLayoutItem[];
-}
+// Remove duplicate interfaces - use LayoutItem directly
 
 interface VisualizationConfig {
   type: 'bar' | 'line' | 'pie' | 'area' | 'table';
@@ -97,7 +85,7 @@ interface Widget {
   y: number;
   w: number;
   h: number;
-  data?: Json;
+  data?: any;
 }
 
 interface DashboardState {
@@ -122,28 +110,10 @@ function DashboardBuilder() {
     layouts: INITIAL_LAYOUT,
     widgets: []
   });
-  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
+  const [savedQueries] = useState<SavedQuery[]>([]);
   const [showQueryDialog, setShowQueryDialog] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
-  const queryService = new QueryService();
 
-  useEffect(() => {
-    loadSavedQueries();
-  }, []);
-
-  const loadSavedQueries = async () => {
-    try {
-      const queries = await queryService.getQueries();
-      setSavedQueries(queries);
-    } catch (error) {
-      toast({
-        title: "Error loading queries",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-  const [selectedWidget, setSelectedWidget] = useState<string | null>(null);
 
   const addWidget = (type: WidgetType) => {
     const newWidget: Widget = {
@@ -203,37 +173,19 @@ function DashboardBuilder() {
         return;
       }
 
-      const session = await supabase.auth.getSession();
-      if (!session.data.session?.user) {
-        toast({
-          title: "Error",
-          description: "Please sign in to save dashboards",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const serializedState = serializeDashboardState(dashboardState);
-      const serializedWidgets = dashboardState.widgets.map(widget => ({
-        ...widget,
-        savedQueryId: widget.savedQuery?.id,
-        savedQuery: undefined
-      }));
-
-      const dashboardData: DashboardsInsert = {
-        user_id: session.data.session.user.id,
+      // Save to localStorage for demo
+      const dashboardData = {
         name: dashboardName,
         description: dashboardDescription,
-        layouts: JSON.parse(JSON.stringify(serializedState.layouts)) as Json,
-        widgets: JSON.parse(JSON.stringify(serializedWidgets)) as Json,
+        layouts: dashboardState.layouts,
+        widgets: dashboardState.widgets,
         rpc_endpoint: RPC_ENDPOINT,
+        created_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
-        .from('dashboards')
-        .insert(dashboardData as any);
-
-      if (error) throw error;
+      const savedDashboards = JSON.parse(localStorage.getItem('dashboards') || '[]');
+      savedDashboards.push(dashboardData);
+      localStorage.setItem('dashboards', JSON.stringify(savedDashboards));
 
       toast({
         title: "Success",
@@ -251,31 +203,14 @@ function DashboardBuilder() {
 
   const loadHistory = async () => {
     try {
-      const session = await supabase.auth.getSession();
-      if (!session.data.session?.user) {
-        toast({
-          title: "Error",
-          description: "Please sign in to view dashboard history",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('dashboards')
-        .select('*')
-        .eq('user_id', session.data.session.user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
+      const savedDashboards = JSON.parse(localStorage.getItem('dashboards') || '[]');
+      
       toast({
         title: "Success",
-        description: `Found ${data.length} saved dashboards`,
+        description: `Found ${savedDashboards.length} saved dashboards`,
       });
       
-      // TODO: Show history in a modal
-      console.log("Dashboard history:", data);
+      console.log("Dashboard history:", savedDashboards);
     } catch (error) {
       console.error("Error loading history:", error);
       toast({

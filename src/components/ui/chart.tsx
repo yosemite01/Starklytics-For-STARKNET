@@ -62,7 +62,9 @@ export function LiveChart({ title, method, dataKey, color = "#8884d8", onDataUpd
         }
 
         const result = await response.json();
-        console.log(`${method} response:`, result);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`${method} response:`, result);
+        }
         
         if (onDataUpdate) {
           onDataUpdate(result);

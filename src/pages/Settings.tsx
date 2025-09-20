@@ -27,12 +27,21 @@ export default function Settings() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save to localStorage for demo
+      localStorage.setItem('user_settings', JSON.stringify({
+        ...settings,
+        updatedAt: new Date().toISOString()
+      }));
+      
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       toast({
         title: "Settings saved",
         description: "Your preferences have been updated successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Settings save error:', error?.message || 'Unknown error');
       toast({
         title: "Error saving settings",
         description: "Please try again.",

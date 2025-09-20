@@ -24,14 +24,14 @@ import {
   Clock,
   Target
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { bountyService } from '@/services/BountyService';
+import { useToast } from '@/components/ui/use-toast';
 // NOTE: All actual token deposit logic should be handled by a backend API for security.
 
 export default function CreateBounty() {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { toast } = useToast();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -78,81 +78,54 @@ export default function CreateBounty() {
       setError('You must be logged in to create a bounty.');
       return;
     }
-    if (profile.role !== 'bounty_creator' && profile.role !== 'admin') {
-      setError('Only bounty creators can create bounties. Please update your profile role.');
+    if (profile.role !== 'creator' && profile.role !== 'admin') {
+      toast({
+        title: "Access Denied",
+        description: "Only bounty creators can create bounties. Please update your profile role.",
+        variant: "destructive",
+      });
       return;
     }
     setLoading(true);
-    setError('');
-    setSuccess('');
+
     try {
-      // 1. Create bounty in DB (status: pending_deposit)
-      const { data: bounty, error: bountyError } = await supabase
-        .from('bounties')
-        .insert([{
-          creator_id: user.id,
-          title: formData.title,
-          description: formData.description,
-          requirements: formData.requirements,
-          submission_guidelines: formData.submission_guidelines,
-          reward_amount: parseFloat(formData.reward_amount),
-          reward_token: formData.reward_token,
-          deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
-          difficulty: formData.difficulty,
-          max_participants: formData.max_participants ? parseInt(formData.max_participants) : null,
-          tags: formData.tags,
-          platform_fee_percentage: platformFeePercentage,
-          status: 'pending_deposit'
-        }])
-        .select()
-        .single();
-      if (bountyError) throw bountyError;
-
-      // 2. Call backend API to perform deposit with AutoSwappr
-      const depositRes = await fetch('/api/deposit-bounty', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bountyId: bounty.id,
+      // Create bounty data
+      const bountyData = {
+        title: formData.title,
+        description: formData.description,
+        reward: {
           amount: parseFloat(formData.reward_amount),
-          token: formData.reward_token,
-          creatorWallet: profile.wallet_address,
-        })
+          currency: formData.reward_token
+        },
+        category: 'research', // Default category
+        priority: formData.difficulty === 'easy' ? 'low' : 
+                 formData.difficulty === 'medium' ? 'medium' : 
+                 formData.difficulty === 'hard' ? 'high' : 'critical',
+        tags: formData.tags,
+        requirements: [{
+          description: formData.requirements || 'Complete the bounty requirements',
+          isCompleted: false
+        }],
+        deadline: formData.deadline ? new Date(formData.deadline) : undefined,
+        isPublic: true
+      };
+
+      const bounty = await bountyService.createBounty(bountyData);
+
+      // TODO: Implement AutoSwappr deposit integration
+      // For now, bounty is created without deposit
+
+      // TODO: Implement smart contract integration
+      // For now, bounty exists only in database
+
+
+
+      toast({
+        title: "Success!",
+        description: "Bounty created successfully!",
       });
-      if (!depositRes.ok) {
-        throw new Error('Failed to deposit bounty funds. Please try again or contact support.');
-      }
-
-      // 3. Create bounty on smart contract (if wallet connected)
-      if (profile.wallet_address && window.starknet) {
-        try {
-          const { BountyContractService } = await import('@/integrations/bounty-contract');
-          const contractService = new BountyContractService();
-          
-          // Convert strings to felt252 format (first 31 characters)
-          const titleFelt = formData.title.slice(0, 31);
-          const descFelt = formData.description.slice(0, 31);
-          
-          await contractService.createBounty(
-            window.starknet,
-            titleFelt,
-            descFelt,
-            formData.reward_amount,
-            Math.floor(new Date(formData.deadline).getTime() / 1000),
-            parseInt(formData.max_participants) || 100
-          );
-        } catch (contractError) {
-          console.warn('Contract creation failed, continuing with database only:', contractError);
-        }
-      }
-
-      // 4. Update bounty status to 'active' after successful deposit
-      await supabase
-        .from('bounties')
-        .update({ status: 'active' })
-        .eq('id', bounty.id);
-
-      setSuccess('Bounty created and deposit successful! Your bounty is now active.');
+      
+      // Reset form
       setFormData({
         title: '',
         description: '',
@@ -166,7 +139,11 @@ export default function CreateBounty() {
         tags: [],
       });
     } catch (error: any) {
-      setError(error.message);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create bounty",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -227,19 +204,7 @@ export default function CreateBounty() {
         />
         <main className="flex-1 p-6">
           <div className="max-w-4xl mx-auto">
-            {error && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
 
-            {success && (
-              <Alert className="mb-6">
-                <Trophy className="h-4 w-4" />
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            )}
 
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2">
