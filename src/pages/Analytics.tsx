@@ -15,11 +15,18 @@ interface Query {
 }
 
 export default function Analytics() {
-  const [queries] = useState<Query[]>([]);
+  const [queries, setQueries] = useState<Query[]>([]);
   const [activeQuery, setActiveQuery] = useState<Query | null>(null);
   const [activeTab, setActiveTab] = useState('query');
 
-  const handleQueryComplete = (results: any[]) => {
+  const handleQueryComplete = (results: any[], query: string) => {
+    const newQuery = {
+      id: Date.now().toString(),
+      title: query.split('\n')[0].slice(0, 50) + '...',
+      results
+    };
+    setQueries(prev => [newQuery, ...prev]);
+    setActiveQuery(newQuery);
     if (results.length > 0) {
       setActiveTab('visualize');
     }

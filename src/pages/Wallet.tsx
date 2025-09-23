@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { SocialLoginDialog } from "@/components/auth/SocialLoginDialog";
 import { 
   Wallet as WalletIcon, 
   ExternalLink, 
@@ -44,6 +45,7 @@ export default function Wallet() {
   const [walletAddress, setWalletAddress] = useState("");
   const [selectedWallet, setSelectedWallet] = useState<"argent" | "ready" | null>(null);
   const [detectedWallets, setDetectedWallets] = useState<{ argent: boolean; ready: boolean }>({ argent: false, ready: false });
+  const [showSocialLogin, setShowSocialLogin] = useState(false);
 
   useEffect(() => {
     const checkWallets = () => {
@@ -202,7 +204,7 @@ export default function Wallet() {
                   </Button>
                 )}
                 <Button
-                  onClick={() => window.open('/auth?social=true', '_self')}
+                  onClick={() => setShowSocialLogin(true)}
                   variant="outline"
                   className="w-full h-16 flex items-center justify-between p-4 hover:bg-primary/10 hover:border-primary"
                 >
@@ -216,6 +218,11 @@ export default function Wallet() {
                     </div>
                   </div>
                 </Button>
+                
+                <SocialLoginDialog
+                  open={showSocialLogin}
+                  onClose={() => setShowSocialLogin(false)}
+                />
                 
                 {!detectedWallets.argent && !detectedWallets.ready && (
                   <div className="text-center text-muted-foreground py-4">

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from '@/components/layout/Header';
+import { ProfileService } from '@/services/ProfileService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,11 +39,12 @@ interface Transaction {
 }
 
 export default function Profile() {
-  const { user, profile, updateProfile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [profile, setProfile] = useState(() => ProfileService.getProfile());
 
   // Form state
   const [formData, setFormData] = useState({
@@ -72,34 +75,48 @@ export default function Profile() {
     setTransactions([]);
   };
 
-  const handleSave = async () => {
+    const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await updateProfile(formData);
+      const updatedProfile = await ProfileService.updateProfile(formData);
+      setProfile(updatedProfile);
       
-      if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Profile updated successfully!",
-        });
-        setEditing(false);
-      }
-    } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update profile",
+        title: "Profile updated",
+        description: "Your profile has been successfully updated.",
+      });
+      
+      setEditing(false);
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "Failed to update your profile. Please try again.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewBounties = () => {
+    navigate('/bounties', { state: { filter: 'my-bounties' } });
+  };
+
+  const handleViewAchievements = () => {
+    // This would typically open an achievements section
+    // For now, we'll show it's working with a toast
+    toast({
+      title: "Achievements",
+      description: "Viewing your achievements (feature coming soon)",
+    });
+  };
+
+  const handleWalletSettings = () => {
+    navigate('/wallet');
   };
 
   const handleCancel = () => {
@@ -356,15 +373,15 @@ export default function Profile() {
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={handleViewBounties}>
                     <Trophy className="w-4 h-4 mr-2" />
                     View My Bounties
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={handleViewAchievements}>
                     <Award className="w-4 h-4 mr-2" />
                     Achievements
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={handleWalletSettings}>
                     <Wallet className="w-4 h-4 mr-2" />
                     Wallet Settings
                   </Button>

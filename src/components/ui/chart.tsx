@@ -8,33 +8,24 @@ interface ChartProps {
   data: Record<string, any>[];
   xAxis?: string;
   yAxis?: string;
-  aggregation?: 'sum' | 'avg' | 'count' | 'min' | 'max';
   className?: string;
 }
 
-interface LiveChartProps {
-  title: string;
-  method: string;
-  dataKey: string;
-  color?: string;
-  onDataUpdate?: (data: any) => void;
-}
+export function Chart({ type, data, xAxis, yAxis, className }: ChartProps) {
+  if (!data || data.length === 0 || !xAxis || !yAxis) {
+    return (
+      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+        Select columns to visualize data
+      </div>
+    );
+  }
 
-export function LiveChart({ title, method, dataKey, color = "#8884d8", onDataUpdate }: LiveChartProps) {
-  const [data, setData] = useState<Array<{ timestamp: number; value: number }>>([]);
-  const [status, setStatus] = useState('Loading...');
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setStatus('Fetching data...');
-        
-        // Try multiple RPC endpoints for reliability
-        const endpoints = [
-          'https://starknet-mainnet.public.blastapi.io',
-          'https://starknet-mainnet.infura.io/v3/YOUR_PROJECT_ID',
-          'https://free-rpc.nethermind.io/mainnet-juno'
-        ];
+  const chartConfig = {
+    width: "100%",
+    height: 400,
+    data,
+    margin: { top: 20, right: 30, bottom: 60, left: 60 }
+  };
         
         let response;
         for (const endpoint of endpoints) {

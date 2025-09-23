@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Play, Save, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { SavedQueries } from './SavedQueries';
+import { useQuerySaver } from '@/hooks/useQuerySaver';
 
 interface QueryEditorProps {
-  onQueryComplete?: (results: any[]) => void;
+  onQueryComplete?: (results: any[], query: string) => void;
 }
 
 export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
@@ -14,25 +16,44 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const {
+    isAutosaveEnabled,
+    savedQueries,
+    saveQuery: saveQueryToCollection,
+    deleteQuery,
+    updateLastRun,
+    toggleAutosave
+  } = useQuerySaver();
 
   const executeQuery = async () => {
     setLoading(true);
     try {
       // Simulate query execution
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
       const mockResults = [
         { id: 1, title: 'Analyze DeFi TVL', reward: 500, status: 'active' },
         { id: 2, title: 'Transaction Patterns', reward: 750, status: 'completed' },
         { id: 3, title: 'User Behavior Study', reward: 300, status: 'active' }
       ];
-      
-      setResults(mockResults);
-      onQueryComplete?.(mockResults);
-      
+      // Parse LIMIT from query
+      let limit = undefined;
+      const limitMatch = query.match(/limit\s+(\d+)/i);
+      if (limitMatch) {
+        limit = parseInt(limitMatch[1], 10);
+      }
+      const limitedResults = limit ? mockResults.slice(0, limit) : mockResults;
+      setResults(limitedResults);
+      onQueryComplete?.(limitedResults, query);
+
+      // Update last run timestamp if query is saved
+      const savedQuery = savedQueries.find(sq => sq.query === query);
+      if (savedQuery) {
+        updateLastRun(savedQuery.id);
+      }
+
       toast({
         title: "Query executed successfully",
-        description: `Found ${mockResults.length} results`,
+        description: `Found ${limitedResults.length} results`,
       });
     } catch (error) {
       toast({
@@ -45,7 +66,18 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
     }
   };
 
+  // Auto-save query when enabled
+  useEffect(() => {
+    if (isAutosaveEnabled && query.trim()) {
+      const timeoutId = setTimeout(() => {
+        saveQueryToCollection(query, true);
+      }, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [query, isAutosaveEnabled]);
+
   const saveQuery = () => {
+    saveQueryToCollection(query);
     toast({
       title: "Query saved",
       description: "Query has been saved to your collection",
@@ -54,6 +86,13 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
 
   return (
     <div className="space-y-4">
+      <SavedQueries 
+        queries={savedQueries}
+        autosaveEnabled={isAutosaveEnabled}
+        onAutosaveToggle={() => toggleAutosave()}
+        onSelectQuery={setQuery}
+        onDeleteQuery={deleteQuery}
+      />
       <Card className="glass">
         <CardHeader>
           <CardTitle>SQL Query Editor</CardTitle>

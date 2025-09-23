@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWallet } from "@/hooks/use-wallet";
 import { useTheme } from "@/contexts/ThemeContext";
+import { RpcStatus } from "@/components/ui/RpcStatus";
 import { 
   Bell, 
   Wallet, 
@@ -59,22 +60,14 @@ export function Header({ title, subtitle }: HeaderProps) {
 
         <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Network Status */}
+          <RpcStatus />
+          
           {/* Docs Link */}
           <Link to="/docs" className="hidden md:block">
             <Button variant="outline" size="sm">
               Docs
             </Button>
           </Link>
-          <div className="hidden lg:flex items-center space-x-2">
-            <div className="flex items-center space-x-1">
-              <Activity className="w-4 h-4 text-chart-success animate-pulse" />
-              <span className="text-xs text-muted-foreground">Mainnet</span>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              <Zap className="w-3 h-3 mr-1" />
-              Live
-            </Badge>
-          </div>
 
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative hidden md:flex">
@@ -103,9 +96,9 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* User Menu */}
           <Link to="/profile">
             <Button variant="ghost" size="icon">
-              {profile?.full_name ? (
+              {profile?.fullName ? (
                 <div className="w-6 h-6 bg-gradient-primary rounded-full flex items-center justify-center text-xs font-semibold text-primary-foreground">
-                  {profile.full_name.charAt(0)}
+                  {profile.fullName.charAt(0)}
                 </div>
               ) : (
                 <User className="w-5 h-5" />

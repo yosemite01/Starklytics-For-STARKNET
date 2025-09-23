@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, Clock, DollarSign, Users, Plus } from "lucide-react";
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/components/ui/use-toast';
+import { BountyDetailsDialog } from '@/components/bounty/BountyDetailsDialog';
 import { bountyService, type Bounty, type BountyStats } from '@/services/BountyService';
 
 
@@ -228,14 +229,11 @@ const Bounties = () => {
                             {bounty.priority}
                           </Badge>
                         </div>
-                        <Button 
-                          onClick={() => handleJoinBounty(bounty._id)}
-                          disabled={bounty.status !== "active" || bounty.createdBy === user?._id}
-                          className={bounty.status === "active" ? "glow-primary" : ""}
-                        >
-                          {bounty.createdBy === user?._id ? "Your Bounty" : 
-                           bounty.status === "active" ? "Join Bounty" : "View Results"}
-                        </Button>
+                        <BountyDetailsDialog
+                          bounty={bounty}
+                          onJoin={handleJoinBounty}
+                          isCreator={bounty.createdBy === user?._id}
+                        />
                       </div>
                     </CardContent>
                   </Card>

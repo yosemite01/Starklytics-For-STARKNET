@@ -1,4 +1,34 @@
-import React, { useState, useEffect } from "react";
+iimport React, import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
+import { Header } from "@/components/layout/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Toaster } from "@/components/ui/toaster";
+import { useToast } from "@/components/ui/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SavedDashboards } from "@/components/dashboard/SavedDashboards";
+import { SaveDashboardDialog } from "@/components/dashboard/SaveDashboardDialog";
+import { DashboardService } from "@/services/DashboardService";
+interface SavedQuery {useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
+import { Header } from "@/components/layout/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Toaster } from "@/components/ui/toaster";
+import { useToast } from "@/components/ui/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SavedDashboards } from "@/components/dashboard/SavedDashboards";
+import { SaveDashboardDialog } from "@/components/dashboard/SaveDashboardDialog";
+import { DashboardService } from "@/services/DashboardService";, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -16,11 +46,14 @@ interface SavedQuery {
   query_text: string;
   results?: any[];
 }
-import { Plus, BarChart3, PieChart, LineChart, Table, Save, Eye, Grid, Layout, History, Download } from "lucide-react";
+import { Plus, BarChart3, PieChart, LineChart, Table, Save, Eye, Grid, Layout, History, Download, List } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
+import { SaveDashboardDialog } from "@/components/dashboard/SaveDashboardDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DashboardService } from "@/services/DashboardService";
+import { v4 as uuidv4 } from 'uuid';
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
@@ -103,6 +136,8 @@ const serializeDashboardState = (state: DashboardState) => ({
 
 // Main Component
 function DashboardBuilder() {
+  const navigate = useNavigate();
+  const { id: dashboardId } = useParams();
   const { toast } = useToast();
   const [dashboardName, setDashboardName] = useState("");
   const [dashboardDescription, setDashboardDescription] = useState("");
@@ -113,6 +148,7 @@ function DashboardBuilder() {
   const [savedQueries] = useState<SavedQuery[]>([]);
   const [showQueryDialog, setShowQueryDialog] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [showDashboardsDialog, setShowDashboardsDialog] = useState(false);
 
 
   const addWidget = (type: WidgetType) => {
@@ -162,7 +198,7 @@ function DashboardBuilder() {
     }));
   };
 
-  const saveDashboard = async () => {
+  const saveDashboard = () => {
     try {
       if (!dashboardName) {
         toast({
@@ -173,19 +209,28 @@ function DashboardBuilder() {
         return;
       }
 
-      // Save to localStorage for demo
-      const dashboardData = {
+      const dashboardConfig = {
+        id: dashboardId || `dashboard-${Date.now()}`,
         name: dashboardName,
         description: dashboardDescription,
-        layouts: dashboardState.layouts,
-        widgets: dashboardState.widgets,
-        rpc_endpoint: RPC_ENDPOINT,
-        created_at: new Date().toISOString()
+        layout: dashboardState.layouts,
+        widgets: dashboardState.widgets.map(widget => ({
+          id: widget.id,
+          type: widget.type,
+          title: widget.title,
+          query: widget.savedQuery?.query_text,
+          options: widget.visualConfig,
+          data: widget.data
+        })),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
-      const savedDashboards = JSON.parse(localStorage.getItem('dashboards') || '[]');
-      savedDashboards.push(dashboardData);
-      localStorage.setItem('dashboards', JSON.stringify(savedDashboards));
+      DashboardService.saveDashboard(dashboardConfig);
+
+      if (!dashboardId) {
+        navigate(`/dashboard/${dashboardConfig.id}`);
+      }
 
       toast({
         title: "Success",
@@ -201,25 +246,54 @@ function DashboardBuilder() {
     }
   };
 
-  const loadHistory = async () => {
-    try {
-      const savedDashboards = JSON.parse(localStorage.getItem('dashboards') || '[]');
-      
-      toast({
-        title: "Success",
-        description: `Found ${savedDashboards.length} saved dashboards`,
-      });
-      
-      console.log("Dashboard history:", savedDashboards);
-    } catch (error) {
-      console.error("Error loading history:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard history",
-        variant: "destructive",
-      });
-    }
+  const loadHistory = () => {
+    setShowDashboardsDialog(true);
   };
+
+  // Load dashboard on component mount if ID is provided
+  useEffect(() => {
+    if (dashboardId) {
+      const dashboard = DashboardService.getDashboardById(dashboardId);
+      if (dashboard) {
+        setDashboardName(dashboard.name);
+        if (dashboard.description) {
+          setDashboardDescription(dashboard.description);
+        }
+        // Convert stored dashboard to component state
+        setDashboardState({
+          layouts: dashboard.layout,
+          widgets: dashboard.widgets.map(widget => ({
+            id: widget.id,
+            type: widget.type as WidgetType,
+            title: widget.title,
+            savedQuery: widget.query ? {
+              id: `query-${widget.id}`,
+              title: widget.title,
+              query_text: widget.query,
+              description: ''
+            } : undefined,
+            visualConfig: widget.options,
+            data: widget.data,
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 4
+          }))
+        });
+        toast({
+          title: "Dashboard loaded",
+          description: "Successfully loaded dashboard"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Dashboard not found",
+          variant: "destructive"
+        });
+        navigate('/dashboard');
+      }
+    }
+  }, [dashboardId]);
 
   const exportDashboard = () => {
     try {
@@ -343,18 +417,16 @@ function DashboardBuilder() {
                 <span>Dashboard Preview</span>
               </CardTitle>
               <div className="flex space-x-2">
-                <Button onClick={loadHistory} variant="outline">
-                  <History className="w-4 h-4 mr-2" />
-                  History
-                </Button>
+                <SavedDashboards />
                 <Button onClick={exportDashboard} variant="outline">
                   <Download className="w-4 h-4 mr-2" />
                   Export
                 </Button>
-                <Button onClick={saveDashboard} className="glow-primary">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Dashboard
-                </Button>
+                <SaveDashboardDialog onSave={(name, description) => {
+                  setDashboardName(name);
+                  setDashboardDescription(description);
+                  saveDashboard();
+                }} />
               </div>
             </CardHeader>
             <CardContent>

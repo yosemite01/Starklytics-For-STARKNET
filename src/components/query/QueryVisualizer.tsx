@@ -14,6 +14,7 @@ export function QueryVisualizer({ data, onVisualizationSave }: QueryVisualizerPr
   const [chartType, setChartType] = useState<'bar' | 'pie' | 'line' | 'table'>('bar');
   const [xAxis, setXAxis] = useState('');
   const [yAxis, setYAxis] = useState('');
+  const { activeEndpoint, status } = useRpcEndpoint();
 
   const columns = useMemo(() => {
     if (!data.length) return [];
