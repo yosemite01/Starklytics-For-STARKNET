@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from '@/components/layout/Header';
@@ -38,10 +39,13 @@ interface Transaction {
 
 export default function Profile() {
   const { user, profile, updateProfile, signOut } = useAuth();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [myBounties, setMyBounties] = useState([]);
+  const [achievements, setAchievements] = useState([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -356,15 +360,49 @@ export default function Profile() {
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => {
+                      // Show user's bounties
+                      const userBounties = JSON.parse(localStorage.getItem('bounties') || '[]')
+                        .filter((b: any) => b.createdBy === user?._id);
+                      setMyBounties(userBounties);
+                      toast({
+                        title: "My Bounties",
+                        description: `You have ${userBounties.length} bounties created`,
+                      });
+                      navigate('/bounties');
+                    }}
+                  >
                     <Trophy className="w-4 h-4 mr-2" />
                     View My Bounties
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => {
+                      // Show achievements
+                      const userAchievements = [
+                        { name: 'First Query', description: 'Executed your first query', earned: true },
+                        { name: 'Bounty Hunter', description: 'Joined your first bounty', earned: false },
+                        { name: 'Data Explorer', description: 'Created 5 dashboards', earned: false }
+                      ];
+                      setAchievements(userAchievements);
+                      toast({
+                        title: "Achievements",
+                        description: `${userAchievements.filter(a => a.earned).length} achievements unlocked`,
+                      });
+                    }}
+                  >
                     <Award className="w-4 h-4 mr-2" />
                     Achievements
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => navigate('/wallet')}
+                  >
                     <Wallet className="w-4 h-4 mr-2" />
                     Wallet Settings
                   </Button>
@@ -378,6 +416,54 @@ export default function Profile() {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* Achievements Modal */}
+              {achievements.length > 0 && (
+                <Card className="glass border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>Achievements</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setAchievements([])}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {achievements.map((achievement: any, index) => (
+                        <div key={index} className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            achievement.earned ? 'bg-yellow-500' : 'bg-muted'
+                          }`}>
+                            <Award className={`w-4 h-4 ${
+                              achievement.earned ? 'text-white' : 'text-muted-foreground'
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <p className={`font-medium ${
+                              achievement.earned ? 'text-foreground' : 'text-muted-foreground'
+                            }`}>
+                              {achievement.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {achievement.description}
+                            </p>
+                          </div>
+                          {achievement.earned && (
+                            <Badge className="bg-yellow-500 text-white">
+                              Earned
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </main>

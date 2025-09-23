@@ -202,17 +202,22 @@ export default function Wallet() {
                   </Button>
                 )}
                 <Button
-                  onClick={() => window.open('/auth?social=true', '_self')}
+                  onClick={() => {
+                    // Simulate social login and redirect to dashboard
+                    setIsConnected(true);
+                    setWalletAddress("0x1234567890abcdef1234567890abcdef12345678");
+                    setSelectedWallet("argent");
+                  }}
                   variant="outline"
                   className="w-full h-16 flex items-center justify-between p-4 hover:bg-primary/10 hover:border-primary"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">C</span>
+                      <span className="text-white font-bold text-sm">S</span>
                     </div>
                     <div className="text-left">
                       <p className="font-medium">Social Login</p>
-                      <p className="text-xs text-muted-foreground">Login with Google, Twitter, or Email</p>
+                      <p className="text-xs text-muted-foreground">Quick demo wallet connection</p>
                     </div>
                   </div>
                 </Button>

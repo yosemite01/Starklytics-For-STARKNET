@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthenticatedSidebar } from '@/components/layout/AuthenticatedSidebar';
 import { Header } from '@/components/layout/Header';
@@ -19,10 +19,19 @@ export default function Settings() {
   const [settings, setSettings] = useState({
     notifications: true,
     emailUpdates: false,
-    darkMode: true,
-    autoSave: true,
+    darkMode: document.documentElement.classList.contains('dark'),
+    autoSave: JSON.parse(localStorage.getItem('autoSaveQueries') || 'true'),
     dataRetention: '30'
   });
+
+  useEffect(() => {
+    // Load saved settings
+    const savedSettings = localStorage.getItem('user_settings');
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      setSettings(prev => ({ ...prev, ...parsed }));
+    }
+  }, []);
 
   const handleSave = async () => {
     setLoading(true);
@@ -32,6 +41,17 @@ export default function Settings() {
         ...settings,
         updatedAt: new Date().toISOString()
       }));
+      
+      // Apply theme setting
+      if (settings.darkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('theme', settings.darkMode ? 'dark' : 'light');
+      
+      // Apply autosave setting
+      localStorage.setItem('autoSaveQueries', JSON.stringify(settings.autoSave));
       
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -109,7 +129,16 @@ export default function Settings() {
                   </div>
                   <Switch 
                     checked={settings.darkMode}
-                    onCheckedChange={(checked) => setSettings({...settings, darkMode: checked})}
+                    onCheckedChange={(checked) => {
+                      setSettings({...settings, darkMode: checked});
+                      // Apply theme immediately
+                      if (checked) {
+                        document.documentElement.classList.add('dark');
+                      } else {
+                        document.documentElement.classList.remove('dark');
+                      }
+                      localStorage.setItem('theme', checked ? 'dark' : 'light');
+                    }}
                   />
                 </div>
               </CardContent>
@@ -131,9 +160,28 @@ export default function Settings() {
                   </div>
                   <Switch 
                     checked={settings.autoSave}
-                    onCheckedChange={(checked) => setSettings({...settings, autoSave: checked})}
+                    onCheckedChange={(checked) => {
+                      setSettings({...settings, autoSave: checked});
+                      localStorage.setItem('autoSaveQueries', JSON.stringify(checked));
+                      toast({
+                        title: checked ? "Auto-save enabled" : "Auto-save disabled",
+                        description: checked ? "Queries will be saved automatically" : "Manual save required",
+                      });
+                    }}
                   />
                 </div>
+                {settings.autoSave && (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-sm text-muted-foreground">
+                      ✓ Auto-save is active. Your queries are being saved automatically.
+                    </p>
+                    <div className="mt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Saved queries: {JSON.parse(localStorage.getItem('savedQueries') || '[]').length}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Data Retention (days)</Label>
                   <Input 

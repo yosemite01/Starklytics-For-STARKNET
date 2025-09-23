@@ -65,13 +65,19 @@ const Bounties = () => {
   const handleJoinBounty = async (bountyId: string) => {
     if (!user) return;
 
+    const bounty = bounties.find(b => b._id === bountyId);
+    if (!bounty) return;
+
     try {
       await bountyService.joinBounty(bountyId);
       
       toast({
-        title: "Success",
-        description: "Successfully joined bounty",
+        title: "Successfully Joined Bounty!",
+        description: `You've joined "${bounty.title}" - Reward: ${bounty.reward.amount} ${bounty.reward.currency}`,
       });
+      
+      // Show detailed bounty info
+      setSelectedBounty(bounty);
       
       // Refresh bounties to update participant count
       fetchBounties();
@@ -84,6 +90,8 @@ const Bounties = () => {
       });
     }
   };
+
+  const [selectedBounty, setSelectedBounty] = useState<Bounty | null>(null);
 
   const formatDeadline = (deadline: Date | undefined) => {
     if (!deadline) return 'No deadline';
@@ -228,18 +236,130 @@ const Bounties = () => {
                             {bounty.priority}
                           </Badge>
                         </div>
-                        <Button 
-                          onClick={() => handleJoinBounty(bounty._id)}
-                          disabled={bounty.status !== "active" || bounty.createdBy === user?._id}
-                          className={bounty.status === "active" ? "glow-primary" : ""}
-                        >
-                          {bounty.createdBy === user?._id ? "Your Bounty" : 
-                           bounty.status === "active" ? "Join Bounty" : "View Results"}
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline"
+                            onClick={() => setSelectedBounty(bounty)}
+                            size="sm"
+                          >
+                            View Details
+                          </Button>
+                          <Button 
+                            onClick={() => handleJoinBounty(bounty._id)}
+                            disabled={bounty.status !== "active" || bounty.createdBy === user?._id}
+                            className={bounty.status === "active" ? "glow-primary" : ""}
+                            size="sm"
+                          >
+                            {bounty.createdBy === user?._id ? "Your Bounty" : 
+                             bounty.status === "active" ? "Join Bounty" : "View Results"}
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            )}
+
+            {/* Bounty Details Modal */}
+            {selectedBounty && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <Card className="glass max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-2xl">{selectedBounty.title}</CardTitle>
+                        <Badge 
+                          variant={selectedBounty.status === "active" ? "default" : "secondary"}
+                          className={selectedBounty.status === "active" ? "glow-primary mt-2" : "mt-2"}
+                        >
+                          {selectedBounty.status.charAt(0).toUpperCase() + selectedBounty.status.slice(1)}
+                        </Badge>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setSelectedBounty(null)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div>
+                      <h3 className="font-semibold mb-2">Description</h3>
+                      <p className="text-muted-foreground leading-relaxed">{selectedBounty.description}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium mb-1">Reward</h4>
+                        <div className="flex items-center space-x-2">
+                          <DollarSign className="w-4 h-4 text-chart-success" />
+                          <span className="font-semibold text-chart-success">
+                            {selectedBounty.reward.amount} {selectedBounty.reward.currency}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-1">Deadline</h4>
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{formatDeadline(selectedBounty.deadline)}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-1">Priority</h4>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {selectedBounty.priority}
+                        </Badge>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-1">Submissions</h4>
+                        <div className="flex items-center space-x-2">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            {selectedBounty.submissions.length} submission{selectedBounty.submissions.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedBounty.requirements && selectedBounty.requirements.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold mb-2">Requirements</h3>
+                        <ul className="space-y-1">
+                          {selectedBounty.requirements.map((req, index) => (
+                            <li key={index} className="text-sm text-muted-foreground flex items-start space-x-2">
+                              <span className="text-primary mt-1">•</span>
+                              <span>{req}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end space-x-2 pt-4 border-t">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedBounty(null)}
+                      >
+                        Close
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          handleJoinBounty(selectedBounty._id);
+                          setSelectedBounty(null);
+                        }}
+                        disabled={selectedBounty.status !== "active" || selectedBounty.createdBy === user?._id}
+                        className={selectedBounty.status === "active" ? "glow-primary" : ""}
+                      >
+                        {selectedBounty.createdBy === user?._id ? "Your Bounty" : 
+                         selectedBounty.status === "active" ? "Join This Bounty" : "View Results"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </main>

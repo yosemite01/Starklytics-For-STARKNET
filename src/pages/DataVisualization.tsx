@@ -116,7 +116,21 @@ export default function DataVisualization() {
   };
 
   useEffect(() => {
-    fetchData();
+    // Check for query results from localStorage first
+    const dashboardData = localStorage.getItem('dashboardData');
+    const lastQueryResults = localStorage.getItem('lastQueryResults');
+    
+    if (dashboardData) {
+      const queryData = JSON.parse(dashboardData);
+      setData(queryData);
+      setConnectionStatus('connected');
+    } else if (lastQueryResults) {
+      const queryData = JSON.parse(lastQueryResults);
+      setData(queryData);
+      setConnectionStatus('connected');
+    } else {
+      fetchData();
+    }
     
     // Auto-refresh every 30 seconds for live data
     const interval = setInterval(fetchData, 30000);
@@ -388,43 +402,61 @@ export default function DataVisualization() {
           </Card>
 
           {/* Data Source Info */}
-          <Card className="glass border-border">
-            <CardHeader>
-              <CardTitle>Data Source</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full ${
-                    connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
-                    connectionStatus === 'fallback' ? 'bg-yellow-400' : 'bg-red-400'
-                  }`}></div>
-                  <div>
-                    <p className="text-sm font-medium">Data Source</p>
-                    <p className="text-xs text-muted-foreground">
-                      {connectionStatus === 'connected' ? 'Live RPC' :
-                       connectionStatus === 'fallback' ? 'Realistic Simulation' : 'Offline'}
-                    </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="glass border-border">
+              <CardHeader>
+                <CardTitle>Data Source</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
+                      connectionStatus === 'fallback' ? 'bg-yellow-400' : 'bg-red-400'
+                    }`}></div>
+                    <div>
+                      <p className="text-sm font-medium">Data Source</p>
+                      <p className="text-xs text-muted-foreground">
+                        {localStorage.getItem('dashboardData') ? 'Query Results' :
+                         connectionStatus === 'connected' ? 'Live RPC' :
+                         connectionStatus === 'fallback' ? 'Realistic Simulation' : 'Offline'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">Network</p>
+                      <p className="text-xs text-muted-foreground">Starknet Mainnet</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">Last Updated</p>
+                      <p className="text-xs text-muted-foreground">{new Date().toLocaleString()}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">Network</p>
-                    <p className="text-xs text-muted-foreground">Starknet Mainnet</p>
+              </CardContent>
+            </Card>
+            
+            {localStorage.getItem('dashboardQuery') && (
+              <Card className="glass border-border">
+                <CardHeader>
+                  <CardTitle>Source Query</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <code className="text-sm">{localStorage.getItem('dashboardQuery')}</code>
                   </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">Last Updated</p>
-                    <p className="text-xs text-muted-foreground">{new Date().toLocaleString()}</p>
-                    <p className="text-xs text-green-400">Live Data - Auto Refresh</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Showing results from Query Editor
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </main>
       </div>
     </div>
