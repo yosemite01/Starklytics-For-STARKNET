@@ -40,6 +40,9 @@ export const validateBountyAmount = (amount: number): boolean => {
 
 export const validateDeadline = (deadline: string): boolean => {
   const deadlineDate = new Date(deadline);
+  if (isNaN(deadlineDate.getTime())) {
+    return false;
+  }
   const now = new Date();
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() + 1); // Max 1 year from now
@@ -48,7 +51,11 @@ export const validateDeadline = (deadline: string): boolean => {
 };
 
 export const sanitizeInput = (input: string): string => {
-  return input.trim().replace(/[<>]/g, '');
+  return input
+    .trim()
+    .replace(/[<>"'&]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '');
 };
 
 export const validateQueryText = (query: string): { isValid: boolean; errors: string[] } => {

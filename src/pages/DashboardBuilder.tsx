@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -9,21 +10,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import type { Json } from "@/integrations/supabase/database.types";
-import type { DashboardsInsert } from '@/integrations/supabase/dashboard.types';
-import { QueryService } from '@/integrations/supabase/query.service';
-import type { SavedQuery } from '@/types/query.types';
-import { Plus, BarChart3, PieChart, LineChart, Table, Save, Eye, Grid, Layout, History, Download } from "lucide-react";
+import { Plus, BarChart3, PieChart, LineChart, Table, Save, Eye, Grid, Layout, History, Download, List } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
+import { SaveDashboardDialog } from "@/components/dashboard/SaveDashboardDialog";
+import { SavedDashboards } from "@/components/dashboard/SavedDashboards";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DashboardService } from "@/services/DashboardService";
+
+interface SavedQuery {
+  id: string;
+  title: string;
+  description?: string;
+  query_text: string;
+  results?: any[];
+}
+import { v4 as uuidv4 } from 'uuid';
 import "react-grid-layout/css/styles.css";
-// The resizable styles are included in react-grid-layout
+import "react-resizable/css/styles.css";
 
 // Constants
-const RPC_ENDPOINT = "https://36c4832f2e9b.ngrok-free.app";
+const RPC_ENDPOINT = import.meta.env.VITE_STARKNET_RPC_URL || "https://starknet-mainnet.reddio.com/rpc/v0_7";
 
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
@@ -64,21 +72,7 @@ interface Layout {
   xxs: LayoutItem[];
 }
 
-interface SerializedLayoutItem {
-  i: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-interface SerializedLayout {
-  lg: SerializedLayoutItem[];
-  md: SerializedLayoutItem[];
-  sm: SerializedLayoutItem[];
-  xs: SerializedLayoutItem[];
-  xxs: SerializedLayoutItem[];
-}
+// Remove duplicate interfaces - use LayoutItem directly
 
 interface VisualizationConfig {
   type: 'bar' | 'line' | 'pie' | 'area' | 'table';
@@ -97,7 +91,7 @@ interface Widget {
   y: number;
   w: number;
   h: number;
-  data?: Json;
+  data?: any;
 }
 
 interface DashboardState {
@@ -115,6 +109,8 @@ const serializeDashboardState = (state: DashboardState) => ({
 
 // Main Component
 function DashboardBuilder() {
+  const navigate = useNavigate();
+  const { id: dashboardId } = useParams();
   const { toast } = useToast();
   const [dashboardName, setDashboardName] = useState("");
   const [dashboardDescription, setDashboardDescription] = useState("");
@@ -122,28 +118,11 @@ function DashboardBuilder() {
     layouts: INITIAL_LAYOUT,
     widgets: []
   });
-  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
+  const [savedQueries] = useState<SavedQuery[]>([]);
   const [showQueryDialog, setShowQueryDialog] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
-  const queryService = new QueryService();
+  const [showDashboardsDialog, setShowDashboardsDialog] = useState(false);
 
-  useEffect(() => {
-    loadSavedQueries();
-  }, []);
-
-  const loadSavedQueries = async () => {
-    try {
-      const queries = await queryService.getQueries();
-      setSavedQueries(queries);
-    } catch (error) {
-      toast({
-        title: "Error loading queries",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-  const [selectedWidget, setSelectedWidget] = useState<string | null>(null);
 
   const addWidget = (type: WidgetType) => {
     const newWidget: Widget = {
@@ -192,7 +171,7 @@ function DashboardBuilder() {
     }));
   };
 
-  const saveDashboard = async () => {
+  const saveDashboard = () => {
     try {
       if (!dashboardName) {
         toast({
@@ -203,37 +182,28 @@ function DashboardBuilder() {
         return;
       }
 
-      const session = await supabase.auth.getSession();
-      if (!session.data.session?.user) {
-        toast({
-          title: "Error",
-          description: "Please sign in to save dashboards",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const serializedState = serializeDashboardState(dashboardState);
-      const serializedWidgets = dashboardState.widgets.map(widget => ({
-        ...widget,
-        savedQueryId: widget.savedQuery?.id,
-        savedQuery: undefined
-      }));
-
-      const dashboardData: DashboardsInsert = {
-        user_id: session.data.session.user.id,
+      const dashboardConfig = {
+        id: dashboardId || `dashboard-${Date.now()}`,
         name: dashboardName,
         description: dashboardDescription,
-        layouts: JSON.parse(JSON.stringify(serializedState.layouts)) as Json,
-        widgets: JSON.parse(JSON.stringify(serializedWidgets)) as Json,
-        rpc_endpoint: RPC_ENDPOINT,
+        layout: dashboardState.layouts,
+        widgets: dashboardState.widgets.map(widget => ({
+          id: widget.id,
+          type: widget.type,
+          title: widget.title,
+          query: widget.savedQuery?.query_text,
+          options: widget.visualConfig,
+          data: widget.data
+        })),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
-      const { error } = await supabase
-        .from('dashboards')
-        .insert(dashboardData as any);
+      DashboardService.saveDashboard(dashboardConfig);
 
-      if (error) throw error;
+      if (!dashboardId) {
+        navigate(`/dashboard/${dashboardConfig.id}`);
+      }
 
       toast({
         title: "Success",
@@ -249,42 +219,54 @@ function DashboardBuilder() {
     }
   };
 
-  const loadHistory = async () => {
-    try {
-      const session = await supabase.auth.getSession();
-      if (!session.data.session?.user) {
+  const loadHistory = () => {
+    setShowDashboardsDialog(true);
+  };
+
+  // Load dashboard on component mount if ID is provided
+  useEffect(() => {
+    if (dashboardId) {
+      const dashboard = DashboardService.getDashboardById(dashboardId);
+      if (dashboard) {
+        setDashboardName(dashboard.name);
+        if (dashboard.description) {
+          setDashboardDescription(dashboard.description);
+        }
+        // Convert stored dashboard to component state
+        setDashboardState({
+          layouts: dashboard.layout,
+          widgets: dashboard.widgets.map(widget => ({
+            id: widget.id,
+            type: widget.type as WidgetType,
+            title: widget.title,
+            savedQuery: widget.query ? {
+              id: `query-${widget.id}`,
+              title: widget.title,
+              query_text: widget.query,
+              description: ''
+            } : undefined,
+            visualConfig: widget.options,
+            data: widget.data,
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 4
+          }))
+        });
+        toast({
+          title: "Dashboard loaded",
+          description: "Successfully loaded dashboard"
+        });
+      } else {
         toast({
           title: "Error",
-          description: "Please sign in to view dashboard history",
-          variant: "destructive",
+          description: "Dashboard not found",
+          variant: "destructive"
         });
-        return;
+        navigate('/dashboard');
       }
-
-      const { data, error } = await supabase
-        .from('dashboards')
-        .select('*')
-        .eq('user_id', session.data.session.user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Found ${data.length} saved dashboards`,
-      });
-      
-      // TODO: Show history in a modal
-      console.log("Dashboard history:", data);
-    } catch (error) {
-      console.error("Error loading history:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard history",
-        variant: "destructive",
-      });
     }
-  };
+  }, [dashboardId]);
 
   const exportDashboard = () => {
     try {
@@ -408,18 +390,16 @@ function DashboardBuilder() {
                 <span>Dashboard Preview</span>
               </CardTitle>
               <div className="flex space-x-2">
-                <Button onClick={loadHistory} variant="outline">
-                  <History className="w-4 h-4 mr-2" />
-                  History
-                </Button>
+                <SavedDashboards />
                 <Button onClick={exportDashboard} variant="outline">
                   <Download className="w-4 h-4 mr-2" />
                   Export
                 </Button>
-                <Button onClick={saveDashboard} className="glow-primary">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Dashboard
-                </Button>
+                <SaveDashboardDialog onSave={(name, description) => {
+                  setDashboardName(name);
+                  setDashboardDescription(description);
+                  saveDashboard();
+                }} />
               </div>
             </CardHeader>
             <CardContent>

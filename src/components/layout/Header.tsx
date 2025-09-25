@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWallet } from "@/hooks/use-wallet";
+import { useTheme } from "@/contexts/ThemeContext";
+import { RpcStatus } from "@/components/ui/RpcStatus";
 import { 
   Bell, 
   Wallet, 
@@ -11,7 +15,6 @@ import {
   Activity,
   Menu
 } from "lucide-react";
-import { useState } from "react";
 
 interface HeaderProps {
   title: string;
@@ -19,16 +22,14 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
-  const [isDark, setIsDark] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
+  const { user, profile } = useAuth();
+  const { isConnected, walletAddress, connectWallet } = useWallet();
+  const { theme, toggleTheme } = useTheme();
 
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-    document.documentElement.classList.toggle('light');
-  };
-
-  const connectWallet = () => {
-    setIsConnected(!isConnected);
+  const handleWalletClick = async () => {
+    if (!isConnected) {
+      await connectWallet('argent');
+    }
   };
 
   return (
@@ -40,8 +41,10 @@ export function Header({ title, subtitle }: HeaderProps) {
             size="icon" 
             className="lg:hidden"
             onClick={() => {
-              const sidebar = document.querySelector('[class*="fixed left-0"]');
-              sidebar?.classList.toggle('-translate-x-full');
+              const sidebar = document.querySelector('.sidebar-mobile');
+              if (sidebar) {
+                sidebar.classList.toggle('-translate-x-full');
+              }
             }}
           >
             <Menu className="w-5 h-5" />
@@ -57,22 +60,14 @@ export function Header({ title, subtitle }: HeaderProps) {
 
         <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Network Status */}
+          <RpcStatus />
+          
           {/* Docs Link */}
           <Link to="/docs" className="hidden md:block">
             <Button variant="outline" size="sm">
               Docs
             </Button>
           </Link>
-          <div className="hidden lg:flex items-center space-x-2">
-            <div className="flex items-center space-x-1">
-              <Activity className="w-4 h-4 text-chart-success animate-pulse" />
-              <span className="text-xs text-muted-foreground">Mainnet</span>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              <Zap className="w-3 h-3 mr-1" />
-              Live
-            </Badge>
-          </div>
 
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative hidden md:flex">
@@ -82,24 +77,34 @@ export function Header({ title, subtitle }: HeaderProps) {
 
           {/* Theme Toggle */}
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>
 
           {/* Wallet Connection */}
           <Button 
             variant={isConnected ? "default" : "outline"}
-            onClick={connectWallet}
+            onClick={handleWalletClick}
             className={isConnected ? "glow-primary" : ""}
             size="sm"
           >
             <Wallet className="w-4 h-4 lg:mr-2" />
-            <span className="hidden lg:inline">{isConnected ? "0x1234...5678" : "Connect"}</span>
+            <span className="hidden lg:inline">
+              {isConnected ? `${walletAddress?.slice(0, 6)}...${walletAddress?.slice(-4)}` : "Connect"}
+            </span>
           </Button>
 
           {/* User Menu */}
-          <Button variant="ghost" size="icon">
-            <User className="w-5 h-5" />
-          </Button>
+          <Link to="/profile">
+            <Button variant="ghost" size="icon">
+              {profile?.fullName ? (
+                <div className="w-6 h-6 bg-gradient-primary rounded-full flex items-center justify-center text-xs font-semibold text-primary-foreground">
+                  {profile.fullName.charAt(0)}
+                </div>
+              ) : (
+                <User className="w-5 h-5" />
+              )}
+            </Button>
+          </Link>
         </div>
       </div>
     </header>

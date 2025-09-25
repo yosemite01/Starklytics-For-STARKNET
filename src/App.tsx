@@ -6,8 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { CavosProvider } from "@/contexts/CavosContext";
-import { DataProvider } from "@/contexts/DataContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -25,14 +25,13 @@ import JoinBounty from "./pages/JoinBounty";
 import PlaceBounty from "./pages/PlaceBounty";
 import SystemStatus from "./pages/SystemStatus";
 
-
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <CavosProvider clientId={import.meta.env.VITE_CAVOS_CLIENT_ID || 'demo'}>
-      <AuthProvider>
-        <DataProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
           <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -126,10 +125,10 @@ const App = () => (
           </Routes>
         </BrowserRouter>
           </TooltipProvider>
-        </DataProvider>
-      </AuthProvider>
-    </CavosProvider>
-  </QueryClientProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

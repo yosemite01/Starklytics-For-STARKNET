@@ -106,6 +106,19 @@ userSchema.virtual('fullName').get(function() {
   return this.firstName || this.lastName || this.email;
 });
 
+// Transform to match frontend expectations
+userSchema.set('toJSON', {
+  virtuals: true,
+  transform: function(doc, ret) {
+    ret.full_name = ret.fullName;
+    ret.username = ret.firstName || ret.email?.split('@')[0];
+    delete ret.password;
+    delete ret.refreshToken;
+    delete ret.__v;
+    return ret;
+  }
+});
+
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password') || !this.password) return next();

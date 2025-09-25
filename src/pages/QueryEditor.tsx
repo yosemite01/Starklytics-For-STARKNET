@@ -6,7 +6,7 @@ const QueryEditor = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
-      <div className="ml-64">
+      <div className="lg:ml-64">
           <Header 
             title="Query Editor" 
             subtitle="Write and execute SQL queries on Starknet data"

@@ -1,82 +1,63 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 
-interface WalletState {
-  isConnected: boolean;
-  walletAddress: string | null;
-  walletType: 'argent' | 'ready' | null;
-  isConnecting: boolean;
+interface DetectedWallets {
+  argent: boolean;
+  ready: boolean;
 }
 
 export function useWallet() {
-  const [state, setState] = useState<WalletState>({
-    isConnected: false,
-    walletAddress: null,
-    walletType: null,
-    isConnecting: false
-  });
-  const { updateProfile } = useAuth();
+  const [isConnected, setIsConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
-  const detectWallets = () => {
-    const argentDetected = typeof window !== 'undefined' && !!(window as any).starknet_argentX;
-    const readyDetected = typeof window !== 'undefined' && !!(window as any).starknet_ready;
-    return { argent: argentDetected, ready: readyDetected };
+  useEffect(() => {
+    // Check if wallet is already connected
+    const savedAddress = localStorage.getItem('wallet_address');
+    if (savedAddress) {
+      setIsConnected(true);
+      setWalletAddress(savedAddress);
+    }
+  }, []);
+
+  const detectWallets = (): DetectedWallets => {
+    // Check for wallet extensions in window object
+    const hasArgent = !!(window as any).starknet_argentX;
+    const hasReady = !!(window as any).starknet_braavos;
+    
+    return {
+      argent: hasArgent,
+      ready: hasReady
+    };
   };
 
-  const connectWallet = async (type: 'argent' | 'ready') => {
+  const connectWallet = async (walletType: 'argent' | 'ready'): Promise<void> => {
     try {
-      setState(prev => ({ ...prev, isConnecting: true }));
+      // Simulate wallet connection
+      const mockAddress = `0x${Math.random().toString(16).substr(2, 40)}`;
       
-      let starknet;
-      if (type === 'argent') {
-        starknet = (window as any).starknet_argentX;
-      } else {
-        starknet = (window as any).starknet_ready;
-      }
-
-      if (!starknet) {
-        throw new Error(`${type} wallet not detected`);
-      }
-
-      const [address] = await starknet.enable();
+      setIsConnected(true);
+      setWalletAddress(mockAddress);
+      localStorage.setItem('wallet_address', mockAddress);
+      localStorage.setItem('wallet_type', walletType);
       
-      setState({
-        isConnected: true,
-        walletAddress: address,
-        walletType: type,
-        isConnecting: false
-      });
-
-      // Update user profile with wallet address
-      await updateProfile({ wallet_address: address });
-
-      return { success: true, address };
+      console.log(`Connected to ${walletType} wallet:`, mockAddress);
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      setState(prev => ({ ...prev, isConnecting: false }));
-      return { success: false, error };
+      console.error('Wallet connection failed:', error);
+      throw error;
     }
   };
 
-  const disconnectWallet = async () => {
-    setState({
-      isConnected: false,
-      walletAddress: null,
-      walletType: null,
-      isConnecting: false
-    });
-    await updateProfile({ wallet_address: null });
+  const disconnectWallet = () => {
+    setIsConnected(false);
+    setWalletAddress(null);
+    localStorage.removeItem('wallet_address');
+    localStorage.removeItem('wallet_type');
   };
 
-  useEffect(() => {
-    const detected = detectWallets();
-    console.log('Detected wallets:', detected);
-  }, []);
-
   return {
-    ...state,
+    isConnected,
+    walletAddress,
+    detectWallets,
     connectWallet,
-    disconnectWallet,
-    detectWallets
+    disconnectWallet
   };
 }

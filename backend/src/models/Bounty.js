@@ -24,8 +24,8 @@ const bountySchema = new mongoose.Schema({
       required: true,
       uppercase: true,
       enum: {
-        values: ['USD', 'EUR', 'GBP', 'ETH', 'BTC'],
-        message: 'Currency must be USD, EUR, GBP, ETH, or BTC'
+        values: ['USD', 'EUR', 'GBP', 'ETH', 'BTC', 'STRK'],
+        message: 'Currency must be USD, EUR, GBP, ETH, BTC, or STRK'
       },
       default: 'USD'
     }
