@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { generateTokens } = require('../utils/generateToken');
+const googleAuthService = require('../utils/googleAuth');
 const logger = require('../utils/logger');
 
 const authController = {
@@ -27,7 +28,8 @@ const authController = {
       password,
       role: role || 'analyst',
       firstName,
-      lastName
+      lastName,
+      authProvider: 'local'
     });
 
     await user.save();
@@ -47,7 +49,8 @@ const authController = {
       requestId: req.requestId,
       userId: user._id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      authProvider: user.authProvider
     });
 
     res.status(201).json({
@@ -61,6 +64,9 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.fullName,
+          authProvider: user.authProvider,
+          profilePicture: user.profilePicture,
+          isEmailVerified: user.isEmailVerified,
           createdAt: user.createdAt
         },
         accessToken,
@@ -87,13 +93,40 @@ const authController = {
       });
     }
 
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      logger.warn(`Login attempt with invalid password for: ${email}`, {
+    // Check if user is a Google OAuth user
+    if (user.authProvider === 'google' && !user.password) {
+      logger.warn(`Local login attempt for Google user: ${email}`, {
         requestId: req.requestId,
         userId: user._id,
         email
+      });
+      
+      return res.status(401).json({
+        success: false,
+        message: 'Please sign in with Google'
+      });
+    }
+
+    // Check password
+    try {
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        logger.warn(`Login attempt with invalid password for: ${email}`, {
+          requestId: req.requestId,
+          userId: user._id,
+          email
+        });
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+    } catch (error) {
+      logger.error(`Password comparison error for: ${email}`, {
+        requestId: req.requestId,
+        userId: user._id,
+        error: error.message
       });
       
       return res.status(401).json({
@@ -117,7 +150,8 @@ const authController = {
       requestId: req.requestId,
       userId: user._id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      authProvider: user.authProvider
     });
 
     res.json({
@@ -131,12 +165,80 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.fullName,
+          authProvider: user.authProvider,
+          profilePicture: user.profilePicture,
+          isEmailVerified: user.isEmailVerified,
           lastLogin: user.lastLogin
         },
         accessToken,
         refreshToken
       }
     });
+  },
+
+  // Google OAuth authentication
+  async googleAuth(req, res) {
+    const { token, role } = req.body;
+
+    try {
+      // Verify Google token and get user info
+      const googleProfile = await googleAuthService.verifyToken(token);
+
+      // Find or create user with Google profile
+      const user = await User.findOrCreateGoogleUser(googleProfile, role);
+
+      // Generate JWT tokens
+      const { accessToken, refreshToken } = generateTokens({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Save refresh token and update last login
+      user.refreshToken = refreshToken;
+      await user.updateLastLogin();
+
+      logger.info(`Google user authenticated: ${user.email}`, {
+        requestId: req.requestId,
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        authProvider: user.authProvider,
+        isNewUser: !user.lastLogin
+      });
+
+      res.json({
+        success: true,
+        message: 'Google authentication successful',
+        data: {
+          user: {
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: user.fullName,
+            authProvider: user.authProvider,
+            profilePicture: user.profilePicture,
+            isEmailVerified: user.isEmailVerified,
+            lastLogin: user.lastLogin
+          },
+          accessToken,
+          refreshToken
+        }
+      });
+
+    } catch (error) {
+      logger.error('Google authentication failed', {
+        requestId: req.requestId,
+        error: error.message
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: error.message || 'Google authentication failed'
+      });
+    }
   },
 
   // Refresh access token
@@ -243,7 +345,10 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.fullName,
+          authProvider: user.authProvider,
+          profilePicture: user.profilePicture,
           isActive: user.isActive,
+          isEmailVerified: user.isEmailVerified,
           lastLogin: user.lastLogin,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt
@@ -279,6 +384,8 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.fullName,
+          authProvider: user.authProvider,
+          profilePicture: user.profilePicture,
           updatedAt: user.updatedAt
         }
       }
@@ -291,9 +398,24 @@ const authController = {
     
     const user = await User.findById(req.user.userId).select('+password');
     
+    // Check if user is Google OAuth user
+    if (user.authProvider === 'google' && !user.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot change password for Google OAuth users'
+      });
+    }
+
     // Verify current password
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-    if (!isCurrentPasswordValid) {
+    try {
+      const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+    } catch (error) {
       return res.status(400).json({
         success: false,
         message: 'Current password is incorrect'
@@ -313,6 +435,140 @@ const authController = {
       success: true,
       message: 'Password changed successfully'
     });
+  },
+
+  // Link Google account to existing user
+  async linkGoogleAccount(req, res) {
+    const { token } = req.body;
+    
+    try {
+      // Verify Google token
+      const googleProfile = await googleAuthService.verifyToken(token);
+      
+      // Get current user
+      const user = await User.findById(req.user.userId);
+      
+      // Check if Google account is already linked to another user
+      const existingGoogleUser = await User.findByGoogleId(googleProfile.googleId);
+      if (existingGoogleUser && existingGoogleUser._id.toString() !== user._id.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: 'This Google account is already linked to another user'
+        });
+      }
+      
+      // Link Google account
+      user.googleId = googleProfile.googleId;
+      user.profilePicture = user.profilePicture || googleProfile.profilePicture;
+      user.isEmailVerified = true;
+      
+      await user.save();
+      
+      logger.info(`Google account linked for user: ${user.email}`, {
+        requestId: req.requestId,
+        userId: user._id
+      });
+      
+      res.json({
+        success: true,
+        message: 'Google account linked successfully',
+        data: {
+          user: {
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: user.fullName,
+            authProvider: user.authProvider,
+            profilePicture: user.profilePicture,
+            isEmailVerified: user.isEmailVerified
+          }
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Failed to link Google account', {
+        requestId: req.requestId,
+        userId: req.user.userId,
+        error: error.message
+      });
+      
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to link Google account'
+      });
+    }
+  },
+
+  // Unlink Google account
+  async unlinkGoogleAccount(req, res) {
+    const { password } = req.body;
+    
+    const user = await User.findById(req.user.userId).select('+password');
+    
+    // Verify password before unlinking
+    if (!user.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot unlink Google account: No password set. Please set a password first.'
+      });
+    }
+    
+    try {
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Incorrect password'
+        });
+      }
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Incorrect password'
+      });
+    }
+    
+    // Unlink Google account
+    user.googleId = undefined;
+    user.authProvider = 'local';
+    
+    await user.save();
+    
+    logger.info(`Google account unlinked for user: ${user.email}`, {
+      requestId: req.requestId,
+      userId: user._id
+    });
+    
+    res.json({
+      success: true,
+      message: 'Google account unlinked successfully'
+    });
+  },
+
+  // Get Google OAuth configuration (for frontend)
+  async getGoogleConfig(req, res) {
+    try {
+      const config = googleAuthService.getAuthConfig();
+      
+      res.json({
+        success: true,
+        data: {
+          googleClientId: config.clientId
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to get Google config', {
+        requestId: req.requestId,
+        error: error.message
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Google OAuth not properly configured'
+      });
+    }
   }
 };
 
