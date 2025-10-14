@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chart } from '../ui/chart';
 import { Table } from '../ui/table';
@@ -21,7 +21,15 @@ interface DashboardWidgetProps {
   onRemove?: () => void;
 }
 
-export function DashboardWidget({ type: defaultType, query, title, xAxis, yAxis, aggregation, onRemove }: DashboardWidgetProps) {
+export function DashboardWidget({
+  type: defaultType,
+  query,
+  title,
+  xAxis,
+  yAxis,
+  aggregation,
+  onRemove
+}: DashboardWidgetProps) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [visualConfig, setVisualConfig] = useState<any>(null);
@@ -30,12 +38,10 @@ export function DashboardWidget({ type: defaultType, query, title, xAxis, yAxis,
     const loadData = () => {
       try {
         setLoading(true);
-        // Get visualization config from query metadata
         if (query.metadata?.visualization) {
           setVisualConfig(query.metadata.visualization);
         }
-        
-        // Use query results if available
+
         if (query.results) {
           setData(query.results);
         }
@@ -48,6 +54,9 @@ export function DashboardWidget({ type: defaultType, query, title, xAxis, yAxis,
 
     loadData();
   }, [query]);
+
+  // ✅ Memoize data to prevent re-render loops
+  const memoizedData = useMemo(() => data, [data]);
 
   const renderContent = () => {
     if (loading) {
@@ -66,12 +75,12 @@ export function DashboardWidget({ type: defaultType, query, title, xAxis, yAxis,
       );
     }
 
-    // Use visualization config if available, otherwise fallback to default type
+    // ✅ Use visualization config if present
     if (visualConfig) {
       return (
         <Chart
           type={visualConfig.type}
-          data={data}
+          data={memoizedData}
           xAxis={visualConfig.xAxis}
           yAxis={visualConfig.yAxis}
           aggregation={visualConfig.aggregation}
@@ -80,37 +89,19 @@ export function DashboardWidget({ type: defaultType, query, title, xAxis, yAxis,
       );
     }
 
-    // Fallback to default rendering
+    // ✅ Default render cases
     switch (defaultType) {
       case 'chart':
-        return (
-          <Chart
-            type="bar"
-            data={data}
-            className="w-full h-[300px]"
-          />
-        );
+        return <Chart type="bar" data={memoizedData} className="w-full h-[300px]" />;
       case 'pie':
-        return (
-          <Chart
-            type="pie"
-            data={data}
-            className="w-full h-[300px]"
-          />
-        );
+        return <Chart type="pie" data={memoizedData} className="w-full h-[300px]" />;
       case 'line':
-        return (
-          <Chart
-            type="line"
-            data={data}
-            className="w-full h-[300px]"
-          />
-        );
+        return <Chart type="line" data={memoizedData} className="w-full h-[300px]" />;
       case 'table':
         return (
           <Table
-            data={data}
-            columns={Object.keys(data[0] || {}).map(key => ({
+            data={memoizedData}
+            columns={Object.keys(memoizedData[0] || {}).map(key => ({
               accessorKey: key,
               header: key
             }))}
