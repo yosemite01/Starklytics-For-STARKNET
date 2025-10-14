@@ -1,7 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Chart } from '@/components/ui/chart';
 import { BarChart3, PieChart, LineChart, Table } from 'lucide-react';
 
@@ -11,85 +17,53 @@ interface QueryVisualizerProps {
 }
 
 export function QueryVisualizer({ data, onVisualizationSave }: QueryVisualizerProps) {
-  const [chartType, setChartType] = useState<'bar' | 'pie' | 'line' | 'table'>('bar');
+  const [chartType, setChartType] = useState<'bar' | 'pie' | 'line' | 'table'>('line');
   const [xAxis, setXAxis] = useState('');
   const [yAxis, setYAxis] = useState('');
-  const { activeEndpoint, status } = useRpcEndpoint();
+  const [method, setMethod] = useState('starknet_getBlockWithTxs');
+  const [endpoint, setEndpoint] = useState('https://starknet-mainnet.public.blastapi.io/rpc/v0_6');
 
-  const columns = useMemo(() => {
-    if (!data.length) return [];
-    return Object.keys(data[0]);
-  }, [data]);
-
-  const numericColumns = useMemo(() => {
-    if (!data.length) return [];
-    return columns.filter(col => typeof data[0][col] === 'number');
-  }, [data, columns]);
+  const columns = useMemo(() => (data.length ? Object.keys(data[0]) : []), [data]);
+  const numericColumns = useMemo(
+    () => (data.length ? columns.filter(col => typeof data[0][col] === 'number') : []),
+    [data, columns]
+  );
 
   const saveVisualization = () => {
     const config = {
       type: chartType,
       xAxis,
       yAxis,
-      data
+      method,
+      endpoint,
     };
     onVisualizationSave?.(config);
   };
 
-  if (!data.length) {
-    return (
-      <Card className="glass">
-        <CardContent className="p-8 text-center">
-          <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">No data to visualize</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
+      {/* ====== Settings Card ====== */}
       <Card className="glass">
         <CardHeader>
           <CardTitle>Visualization Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Chart Type */}
             <div>
               <label className="text-sm font-medium mb-2 block">Chart Type</label>
               <Select value={chartType} onValueChange={(value: any) => setChartType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="bar">
-                    <div className="flex items-center">
-                      <BarChart3 className="w-4 h-4 mr-2" />
-                      Bar Chart
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="pie">
-                    <div className="flex items-center">
-                      <PieChart className="w-4 h-4 mr-2" />
-                      Pie Chart
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="line">
-                    <div className="flex items-center">
-                      <LineChart className="w-4 h-4 mr-2" />
-                      Line Chart
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="table">
-                    <div className="flex items-center">
-                      <Table className="w-4 h-4 mr-2" />
-                      Table
-                    </div>
-                  </SelectItem>
+                  <SelectItem value="bar"><BarChart3 className="w-4 h-4 mr-2" />Bar Chart</SelectItem>
+                  <SelectItem value="pie"><PieChart className="w-4 h-4 mr-2" />Pie Chart</SelectItem>
+                  <SelectItem value="line"><LineChart className="w-4 h-4 mr-2" />Line Chart</SelectItem>
+                  <SelectItem value="table"><Table className="w-4 h-4 mr-2" />Table</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* X & Y Axis (for table or static data) */}
             {chartType !== 'table' && (
               <>
                 <div>
@@ -123,12 +97,39 @@ export function QueryVisualizer({ data, onVisualizationSave }: QueryVisualizerPr
             )}
           </div>
 
-          <Button onClick={saveVisualization} className="glow-primary">
+          {/* RPC Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">RPC Method</label>
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select RPC Method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="starknet_getBlockWithTxs">starknet_getBlockWithTxs</SelectItem>
+                  <SelectItem value="starknet_getStateUpdate">starknet_getStateUpdate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">RPC Endpoint</label>
+              <input
+                type="text"
+                value={endpoint}
+                onChange={(e) => setEndpoint(e.target.value)}
+                className="w-full p-2 border border-border rounded-md bg-background text-sm"
+              />
+            </div>
+          </div>
+
+          <Button onClick={saveVisualization} className="glow-primary mt-2">
             Save Visualization
           </Button>
         </CardContent>
       </Card>
 
+      {/* ====== Preview Card ====== */}
       <Card className="glass">
         <CardHeader>
           <CardTitle>Preview</CardTitle>
@@ -159,8 +160,11 @@ export function QueryVisualizer({ data, onVisualizationSave }: QueryVisualizerPr
             <Chart
               type={chartType}
               data={data}
-              xAxis={xAxis}
-              yAxis={yAxis}
+              xAxis={xAxis || 'timestamp'}
+              yAxis={yAxis || 'value'}
+              method={method}
+              endpoints={[endpoint]}
+              title={method}
               className="w-full h-[400px]"
             />
           )}

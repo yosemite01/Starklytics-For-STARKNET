@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Award, Zap } from "lucide-react";
-import { LiveChart } from "@/components/ui/chart";
+import { Chart } from "@/components/ui/chart";
 import { AIDataInterpreter } from "@/components/ai/AIDataInterpreter";
 import { AIChatBox } from "@/components/ai/AIChatBox";
 import { AIFloatingButton } from "@/components/ai/AIFloatingButton";
@@ -27,7 +27,7 @@ const Index = () => {
         const bounties = await bountyService.getBounties({ limit: 3 });
         setRecentBounties(bounties);
       } catch (error) {
-        console.error('Error fetching recent bounties:', error);
+        console.error("Error fetching recent bounties:", error);
       } finally {
         setLoading(false);
       }
@@ -36,122 +36,149 @@ const Index = () => {
     fetchRecentBounties();
   }, []);
 
+  const endpoints = [
+    "https://starknet-mainnet.public.blastapi.io",
+    "https://starknet-mainnet.infura.io/v3/YOUR_INFURA_KEY",
+  ];
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
       <div className="lg:ml-64">
-          <Header 
-            title="Analytics Dashboard" 
-            subtitle="Monitor Starknet network activity and performance"
-          />
-          
-          <main className="p-6 space-y-6">
-            {/* Stats Overview */}
-            <StatsOverview />
+        <Header
+          title="Analytics Dashboard"
+          subtitle="Monitor Starknet network activity and performance"
+        />
 
-            {/* Charts Section */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card className="glass glow-chart">
-                <CardHeader>
-                  <CardTitle>Transaction Volume</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <LiveChart 
-                    title="Transaction Volume"
-                    method="starknet_getBlockWithTxs"
-                    dataKey="value"
-                    color="hsl(var(--chart-primary))"
-                    onDataUpdate={setRpcData}
-                  />
-                </CardContent>
-              </Card>
+        <main className="p-6 space-y-6">
+          {/* Stats Overview */}
+          <StatsOverview />
 
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle>Network Activity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <LiveChart 
-                    title="Network Activity"
-                    method="starknet_getStateUpdate"
-                    dataKey="value"
-                    color="hsl(var(--chart-secondary))"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* AI Data Interpreter */}
-            <AIDataInterpreter rpcData={rpcData} />
-
-            {/* Query Editor Section */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <Card className="glass">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Zap className="w-5 h-5 text-primary animate-pulse-glow" />
-                      <span>Quick Query</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <QueryEditor />
-                  </CardContent>
-                </Card>
-              </div>
-              <QuerySuggestions onSelectQuery={(selectedQuery) => {
-                // Navigate to query page with the selected query
-                const encodedQuery = encodeURIComponent(selectedQuery);
-                window.location.href = `/query?q=${encodedQuery}`;
-              }} />
-            </div>
-
-            {/* Recent Activity */}
-            <Card className="glass">
+          {/* Charts Section */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="glass glow-chart">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Award className="w-5 h-5 text-chart-warning" />
-                  <span>Recent Bounties</span>
-                </CardTitle>
+                <CardTitle>Transaction Volume</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {loading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-sm text-muted-foreground mt-2">Loading bounties...</p>
-                    </div>
-                  ) : recentBounties.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Award className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No bounties available yet</p>
-                    </div>
-                  ) : (
-                    recentBounties.map((bounty) => (
-                      <div key={bounty._id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/20 transition-all">
-                        <div>
-                          <h4 className="font-medium">{bounty.title}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Reward: {bounty.reward.amount} {bounty.reward.currency}
-                          </p>
-                        </div>
-                        <Badge variant={bounty.status === "active" ? "default" : "secondary"}>
-                          {bounty.status.charAt(0).toUpperCase() + bounty.status.slice(1)}
-                        </Badge>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="mt-4">
-                  <Button className="w-full" asChild>
-                    <a href="/bounties">View All Bounties</a>
-                  </Button>
-                </div>
+                <Chart
+                  title="Transaction Volume"
+                  type="line"
+                  method="starknet_getBlockWithTxs"
+                  data={[]} // required initial data
+                  xAxis="timestamp"
+                  yAxis="value"
+                  color="hsl(var(--chart-primary))"
+                  endpoints={endpoints}
+                  onDataUpdate={setRpcData}
+                />
               </CardContent>
             </Card>
-          </main>
+
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Network Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Chart
+                  title="Network Activity"
+                  type="line"
+                  method="starknet_getStateUpdate"
+                  data={[]} // required initial data
+                  xAxis="timestamp"
+                  yAxis="value"
+                  color="hsl(var(--chart-secondary))"
+                  endpoints={endpoints}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* AI Data Interpreter */}
+          <AIDataInterpreter rpcData={rpcData} />
+
+          {/* Query Editor Section */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Zap className="w-5 h-5 text-primary animate-pulse-glow" />
+                    <span>Quick Query</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <QueryEditor />
+                </CardContent>
+              </Card>
+            </div>
+            <QuerySuggestions
+              onSelectQuery={(selectedQuery) => {
+                const encodedQuery = encodeURIComponent(selectedQuery);
+                window.location.href = `/query?q=${encodedQuery}`;
+              }}
+            />
+          </div>
+
+          {/* Recent Activity */}
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Award className="w-5 h-5 text-chart-warning" />
+                <span>Recent Bounties</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Loading bounties...
+                    </p>
+                  </div>
+                ) : recentBounties.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Award className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No bounties available yet
+                    </p>
+                  </div>
+                ) : (
+                  recentBounties.map((bounty) => (
+                    <div
+                      key={bounty._id}
+                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/20 transition-all"
+                    >
+                      <div>
+                        <h4 className="font-medium">{bounty.title}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Reward: {bounty.reward.amount}{" "}
+                          {bounty.reward.currency}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          bounty.status === "active" ? "default" : "secondary"
+                        }
+                      >
+                        {bounty.status.charAt(0).toUpperCase() +
+                          bounty.status.slice(1)}
+                      </Badge>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="mt-4">
+                <Button className="w-full" asChild>
+                  <a href="/bounties">View All Bounties</a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
       </div>
-      
+
       {/* AI Components */}
       {!chatOpen && <AIFloatingButton onClick={() => setChatOpen(true)} />}
       <AIChatBox isOpen={chatOpen} onClose={() => setChatOpen(false)} />
