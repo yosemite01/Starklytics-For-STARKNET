@@ -96,6 +96,10 @@ class ApiClient {
     return this.request('/auth/oauth/config');
   }
 
+  async getGoogleConfig() {
+    return this.request('/auth/google/config');
+  }
+
   async post(endpoint: string, data: any) {
     return this.request(endpoint, {
       method: 'POST',

@@ -38,7 +38,9 @@ const Index = () => {
 
   const endpoints = [
     "https://starknet-mainnet.public.blastapi.io",
-    "https://starknet-mainnet.infura.io/v3/YOUR_INFURA_KEY",
+    "https://free-rpc.nethermind.io/mainnet-juno",
+    "https://starknet-mainnet.g.alchemy.com/v2/demo",
+    "https://rpc.starknet.lava.build",
   ];
 
   return (
