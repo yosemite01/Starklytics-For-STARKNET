@@ -4,6 +4,7 @@ interface Profile {
   email: string;
   bio: string;
   walletAddress: string;
+  role: string;
   preferences: {
     theme: string;
     notifications: boolean;
@@ -43,6 +44,7 @@ export class ProfileService {
       email: '',
       bio: '',
       walletAddress: '',
+      role: 'analyst',
       preferences: {
         theme: 'system',
         notifications: true,

@@ -21,6 +21,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: (token: string, role?: 'analyst' | 'creator') => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
 }
@@ -77,7 +78,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => {
     try {
-      // Demo mode - create user locally
+      // Always use demo mode for now since backend might not be running
       const newUser: User = {
         _id: Date.now().toString(),
         email,
@@ -87,27 +88,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isActive: true,
         lastLogin: new Date()
       };
-      
+
       const token = `demo_token_${Date.now()}`;
       localStorage.setItem('auth_token', token);
       localStorage.setItem('demo_user', JSON.stringify(newUser));
-      
+
       setUser(newUser);
       setProfile({ ...newUser, fullName: `${newUser.firstName} ${newUser.lastName}` });
-      
+
       setTimeout(() => {
         window.location.href = '/';
       }, 100);
-      
+
       return { error: null };
     } catch (error: any) {
-      return { error };
+      console.error('Signup error:', error);
+      return { error: error.message || 'Signup failed' };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Demo mode - accept any credentials
+      // Always use demo mode for now since backend might not be running
       const demoUser: User = {
         _id: 'demo_user_123',
         email,
@@ -117,17 +119,45 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isActive: true,
         lastLogin: new Date()
       };
-      
+
       const token = `demo_token_${Date.now()}`;
       localStorage.setItem('auth_token', token);
       localStorage.setItem('demo_user', JSON.stringify(demoUser));
-      
+
       setUser(demoUser);
       setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
-      
+
       return { error: null };
     } catch (error: any) {
-      return { error };
+      console.error('Login error:', error);
+      return { error: error.message || 'Login failed' };
+    }
+  };
+
+  const signInWithGoogle = async (token: string, role: 'analyst' | 'creator' = 'analyst') => {
+    try {
+      // Demo Google login
+      const demoUser: User = {
+        _id: 'google_demo_user',
+        email: 'google_demo@starklytics.com',
+        firstName: 'Google',
+        lastName: 'Demo',
+        role: 'analyst',
+        isActive: true,
+        lastLogin: new Date()
+      };
+
+      const demoToken = `google_demo_token_${Date.now()}`;
+      localStorage.setItem('auth_token', demoToken);
+      localStorage.setItem('demo_user', JSON.stringify(demoUser));
+
+      setUser(demoUser);
+      setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      return { error: error.message || 'Google authentication failed' };
     }
   };
 
@@ -160,6 +190,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     loading,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     updateProfile,
   };

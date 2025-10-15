@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: function() {
-      return !this.googleId; // Password required only if not Google user
+      return !this.googleId && !this.twitterId && !this.githubId; // Password required only if not OAuth user
     },
     minlength: [6, 'Password must be at least 6 characters'],
     select: false // Don't include password in queries by default
@@ -28,9 +28,19 @@ const userSchema = new mongoose.Schema({
     sparse: true, // Allow null values but ensure uniqueness when present
     unique: true
   },
+  twitterId: {
+    type: String,
+    sparse: true,
+    unique: true
+  },
+  githubId: {
+    type: String,
+    sparse: true,
+    unique: true
+  },
   authProvider: {
     type: String,
-    enum: ['local', 'google'],
+    enum: ['local', 'google', 'twitter', 'github'],
     default: 'local'
   },
   role: {
@@ -67,7 +77,7 @@ const userSchema = new mongoose.Schema({
   isEmailVerified: {
     type: Boolean,
     default: function() {
-      return this.authProvider === 'google'; // Google users are pre-verified
+      return this.authProvider === 'google' || this.authProvider === 'github'; // OAuth users are pre-verified
     }
   },
   lastLogin: {
@@ -156,6 +166,16 @@ userSchema.statics.findByGoogleId = function(googleId) {
   return this.findOne({ googleId, isActive: true });
 };
 
+// Static method to find user by Twitter ID
+userSchema.statics.findByTwitterId = function(twitterId) {
+  return this.findOne({ twitterId, isActive: true });
+};
+
+// Static method to find user by GitHub ID
+userSchema.statics.findByGithubId = function(githubId) {
+  return this.findOne({ githubId, isActive: true });
+};
+
 // Static method to find or create Google user
 userSchema.statics.findOrCreateGoogleUser = async function(googleProfile, role = 'analyst') {
   try {
@@ -191,6 +211,105 @@ userSchema.statics.findOrCreateGoogleUser = async function(googleProfile, role =
       profilePicture: googleProfile.profilePicture,
       role: role,
       isEmailVerified: googleProfile.isEmailVerified
+    });
+
+    await user.save();
+    return user;
+  } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      throw new Error(`User with this ${field} already exists`);
+    }
+    throw error;
+  }
+};
+
+// Static method to find or create Twitter user
+userSchema.statics.findOrCreateTwitterUser = async function(twitterProfile, role = 'analyst') {
+  try {
+    let user = await this.findByTwitterId(twitterProfile.twitterId);
+
+    if (user) {
+      user.firstName = twitterProfile.firstName || user.firstName;
+      user.lastName = twitterProfile.lastName || user.lastName;
+      user.profilePicture = twitterProfile.profilePicture || user.profilePicture;
+      user.username = twitterProfile.username || user.username;
+      await user.save();
+      return user;
+    }
+
+    user = await this.findOne({ email: twitterProfile.email, isActive: true });
+    if (user) {
+      user.twitterId = twitterProfile.twitterId;
+      user.authProvider = 'twitter';
+      user.firstName = twitterProfile.firstName || user.firstName;
+      user.lastName = twitterProfile.lastName || user.lastName;
+      user.profilePicture = twitterProfile.profilePicture || user.profilePicture;
+      user.username = twitterProfile.username || user.username;
+      await user.save();
+      return user;
+    }
+
+    user = new this({
+      email: twitterProfile.email,
+      twitterId: twitterProfile.twitterId,
+      authProvider: 'twitter',
+      firstName: twitterProfile.firstName,
+      lastName: twitterProfile.lastName,
+      username: twitterProfile.username,
+      profilePicture: twitterProfile.profilePicture,
+      role: role,
+      isEmailVerified: twitterProfile.isEmailVerified
+    });
+
+    await user.save();
+    return user;
+  } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      throw new Error(`User with this ${field} already exists`);
+    }
+    throw error;
+  }
+};
+
+// Static method to find or create GitHub user
+userSchema.statics.findOrCreateGithubUser = async function(githubProfile, role = 'analyst') {
+  try {
+    let user = await this.findByGithubId(githubProfile.githubId);
+
+    if (user) {
+      user.firstName = githubProfile.firstName || user.firstName;
+      user.lastName = githubProfile.lastName || user.lastName;
+      user.profilePicture = githubProfile.profilePicture || user.profilePicture;
+      user.username = githubProfile.username || user.username;
+      await user.save();
+      return user;
+    }
+
+    user = await this.findOne({ email: githubProfile.email, isActive: true });
+    if (user) {
+      user.githubId = githubProfile.githubId;
+      user.authProvider = 'github';
+      user.firstName = githubProfile.firstName || user.firstName;
+      user.lastName = githubProfile.lastName || user.lastName;
+      user.profilePicture = githubProfile.profilePicture || user.profilePicture;
+      user.username = githubProfile.username || user.username;
+      user.isEmailVerified = true;
+      await user.save();
+      return user;
+    }
+
+    user = new this({
+      email: githubProfile.email,
+      githubId: githubProfile.githubId,
+      authProvider: 'github',
+      firstName: githubProfile.firstName,
+      lastName: githubProfile.lastName,
+      username: githubProfile.username,
+      profilePicture: githubProfile.profilePicture,
+      role: role,
+      isEmailVerified: githubProfile.isEmailVerified
     });
 
     await user.save();

@@ -1,8 +1,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { apiClient } from "@/lib/api";
+
 
 interface SocialLoginDialogProps {
   open: boolean;
@@ -11,26 +13,105 @@ interface SocialLoginDialogProps {
 
 export function SocialLoginDialog({ open, onClose }: SocialLoginDialogProps) {
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [googleClientId, setGoogleClientId] = useState<string>('');
+  const { signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Fetch Google client ID from backend
+    const fetchGoogleConfig = async () => {
+      try {
+        const response: any = await apiClient.getGoogleConfig();
+        if (response.success) {
+          setGoogleClientId(response.data.googleClientId);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Google config:', error);
+      }
+    };
+
+    if (open) {
+      fetchGoogleConfig();
+    }
+  }, [open]);
 
   const handleSocialLogin = async (provider: string) => {
     setLoading(true);
     try {
-      const email = `${provider}_demo@example.com`;
-      const { error } = await signIn(email, 'demo_password');
-      
-      if (error) {
-        throw error;
+      if (provider === 'google') {
+        // Initialize Google OAuth
+        const googleAuth = (window as any).gapi?.auth2?.getAuthInstance();
+        if (!googleAuth) {
+          // Load Google API if not loaded
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/platform.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+
+          await new Promise<void>((resolve) => {
+            (window as any).gapi.load('auth2', async () => {
+              const auth2 = await (window as any).gapi.auth2.init({
+                client_id: googleClientId || '493459087329-esd7kq05bmm0v8k10h3glp1hrk91ipfj.apps.googleusercontent.com'
+              });
+              const googleUser = await auth2.signIn();
+              const idToken = googleUser.getAuthResponse().id_token;
+
+              // Send token to backend
+              const { error } = await signInWithGoogle(idToken, 'analyst');
+
+              if (error) {
+                throw new Error(error);
+              }
+
+              toast({
+                title: "Login successful",
+                description: "You've been signed in with Google",
+              });
+
+              onClose();
+              window.location.href = '/';
+              resolve();
+            });
+          });
+        } else {
+          const googleUser = await googleAuth.signIn();
+          const idToken = googleUser.getAuthResponse().id_token;
+
+          // Send token to backend
+          const { error } = await signInWithGoogle(idToken, 'analyst');
+
+          if (error) {
+            throw new Error(error);
+          }
+
+          toast({
+            title: "Login successful",
+            description: "You've been signed in with Google",
+          });
+
+          onClose();
+          window.location.href = '/';
+        }
+      } else {
+        // For Twitter and Email, use demo mode for now
+        const email = `${provider}_demo@example.com`;
+        const { error } = await signIn(email, 'demo_password');
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Login successful",
+          description: "You've been signed in via " + provider,
+        });
+
+        onClose();
+        window.location.href = '/';
       }
-
-      toast({
-        title: "Login successful",
-        description: "You've been signed in via " + provider,
-      });
-
-      onClose();
-      window.location.href = '/dashboard';
     } catch (error: any) {
       toast({
         title: "Login failed",
