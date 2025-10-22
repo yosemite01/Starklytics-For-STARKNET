@@ -17,7 +17,7 @@ const generateTokens = (payload) => {
     {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
       issuer: process.env.JWT_ISSUER || 'bounty-backend',
-      audience: process.env.JWT_AUDIANCE || 'bounty-users',
+      audience: process.env.JWT_AUDIENCE || 'bounty-users',
     }
   );
 

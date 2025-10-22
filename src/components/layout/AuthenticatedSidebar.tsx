@@ -27,30 +27,21 @@ import {
   Star,
   Archive,
   ChevronDown,
-  ChevronRight,
-  Shield
+  ChevronRight
 } from "lucide-react";
 
-const getNavigation = (userRole?: string) => {
-  const baseNavigation = [
-    { name: "Dashboard", href: "/", icon: Home },
-    { name: "Discover", href: "/data-explorer", icon: Compass },
-    { name: "Analytics", href: "/analytics", icon: BarChart3 },
-    { name: "Query Editor", href: "/query", icon: Database },
-    { name: "Dashboard Builder", href: "/builder", icon: Layout },
-    { name: "Data Visualization", href: "/charts", icon: FileBarChart },
-    { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
-    { name: "Bounties", href: "/bounties", icon: Trophy },
-    { name: "Wallet", href: "/wallet", icon: Wallet },
-    { name: "Settings", href: "/settings", icon: Settings },
-  ];
-  
-  if (userRole === 'admin') {
-    baseNavigation.splice(1, 0, { name: "Admin Panel", href: "/admin", icon: Shield });
-  }
-  
-  return baseNavigation;
-};
+const navigation = [
+  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Discover", href: "/data-explorer", icon: Compass },
+  { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  { name: "Query Editor", href: "/query", icon: Database },
+  { name: "Dashboard Builder", href: "/builder", icon: Layout },
+  { name: "Data Visualization", href: "/charts", icon: FileBarChart },
+  { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
+  { name: "Bounties", href: "/bounties", icon: Trophy },
+  { name: "Wallet", href: "/wallet", icon: Wallet },
+  { name: "Settings", href: "/settings", icon: Settings },
+];
 
 interface AuthenticatedSidebarProps {
   className?: string;
@@ -160,7 +151,7 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-2 space-y-1">
-          {getNavigation(profile?.role).map((item) => {
+          {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
-import { Header } from "@/components/layout/Header";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,10 +16,12 @@ import {
   Eye,
   Edit,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  LogOut,
+  BarChart3
 } from "lucide-react";
 import { bountyService } from "@/services/BountyService";
-import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 interface AdminStats {
   totalUsers: number;
@@ -51,7 +52,9 @@ interface Report {
 }
 
 export default function AdminDashboard() {
-  const { profile } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [adminSession, setAdminSession] = useState<any>(null);
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalBounties: 0,
@@ -66,8 +69,20 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAdminData();
-  }, []);
+    // Check admin session
+    const session = localStorage.getItem('adminSession');
+    if (session) {
+      const parsedSession = JSON.parse(session);
+      if (parsedSession.isAdmin) {
+        setAdminSession(parsedSession);
+        fetchAdminData();
+      } else {
+        navigate('/admin');
+      }
+    } else {
+      navigate('/admin');
+    }
+  }, [navigate]);
 
   const fetchAdminData = async () => {
     try {
@@ -153,36 +168,44 @@ export default function AdminDashboard() {
     ));
   };
 
-  if (profile?.role !== 'admin') {
+  const handleLogout = () => {
+    localStorage.removeItem('adminSession');
+    toast({
+      title: "Logged Out",
+      description: "Admin session ended",
+    });
+    navigate('/admin');
+  };
+
+  if (!adminSession) {
     return (
-      <div className="min-h-screen bg-background">
-        <AuthenticatedSidebar />
-        <div className="lg:ml-64 flex flex-col min-h-screen">
-          <Header title="Access Denied" subtitle="Admin privileges required" />
-          <main className="flex-1 p-6 flex items-center justify-center">
-            <Card className="glass border-border max-w-md">
-              <CardContent className="p-6 text-center">
-                <Shield className="w-12 h-12 text-destructive mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Admin Access Required</h3>
-                <p className="text-muted-foreground">
-                  You need admin privileges to access this dashboard.
-                </p>
-              </CardContent>
-            </Card>
-          </main>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <AuthenticatedSidebar />
-      <div className="lg:ml-64 flex flex-col min-h-screen">
-        <Header 
-          title="Admin Dashboard" 
-          subtitle="Platform management and oversight"
-        />
+      <div className="flex flex-col min-h-screen">
+        {/* Admin Header */}
+        <div className="h-16 border-b border-border/30 bg-gradient-to-r from-primary/5 to-accent/5 flex items-center justify-between px-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center shadow-lg">
+              <Shield className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Starklytics Admin
+              </h1>
+              <p className="text-xs text-muted-foreground">Welcome, {adminSession.username}</p>
+            </div>
+          </div>
+          <Button onClick={handleLogout} variant="outline" size="sm">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
         
         <main className="flex-1 p-6 space-y-6">
           {/* Admin Stats */}

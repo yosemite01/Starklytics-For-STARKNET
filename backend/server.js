@@ -7,6 +7,11 @@ console.log("✅ Starting server.js...");
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
+if (!MONGO_URI) {
+  console.error('❌ MONGO_URI is not defined. Set the MONGO_URI environment variable before starting the server.');
+  process.exit(1);
+}
+
 let app;
 try {
   app = require('./src/app');
