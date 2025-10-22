@@ -118,7 +118,23 @@ function DashboardBuilder() {
     layouts: INITIAL_LAYOUT,
     widgets: []
   });
-  const [savedQueries] = useState<SavedQuery[]>([]);
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
+
+  // Load saved queries from localStorage
+  useEffect(() => {
+    const queryResults = localStorage.getItem('queryResults');
+    const lastQuery = localStorage.getItem('lastQuery');
+    if (queryResults && lastQuery) {
+      const results = JSON.parse(queryResults);
+      const mockQuery: SavedQuery = {
+        id: 'recent-query',
+        title: 'Recent Query Results',
+        query_text: lastQuery,
+        results: [{ results }]
+      };
+      setSavedQueries([mockQuery]);
+    }
+  }, []);
   const [showQueryDialog, setShowQueryDialog] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [showDashboardsDialog, setShowDashboardsDialog] = useState(false);
@@ -562,8 +578,8 @@ function DashboardBuilder() {
                             <SelectValue placeholder="Select X-Axis" />
                           </SelectTrigger>
                           <SelectContent>
-                            {selectedWidgetData.savedQuery.results?.[0]?.results &&
-                              Object.keys(selectedWidgetData.savedQuery.results[0].results[0] || {}).map((key) => (
+                            {selectedWidgetData.savedQuery.results?.[0]?.results?.[0] &&
+                              Object.keys(selectedWidgetData.savedQuery.results[0].results[0]).map((key) => (
                                 <SelectItem key={key} value={key}>
                                   {key}
                                 </SelectItem>
@@ -589,10 +605,10 @@ function DashboardBuilder() {
                             <SelectValue placeholder="Select Y-Axis" />
                           </SelectTrigger>
                           <SelectContent>
-                            {selectedWidgetData.savedQuery.results?.[0]?.results &&
-                              Object.keys(selectedWidgetData.savedQuery.results[0].results[0] || {})
+                            {selectedWidgetData.savedQuery.results?.[0]?.results?.[0] &&
+                              Object.keys(selectedWidgetData.savedQuery.results[0].results[0])
                                 .filter(key => {
-                                  const value = selectedWidgetData.savedQuery?.results?.[0]?.results[0][key];
+                                  const value = selectedWidgetData.savedQuery?.results?.[0]?.results?.[0]?.[key];
                                   return typeof value === 'number' || !isNaN(Number(value));
                                 })
                                 .map((key) => (
@@ -647,17 +663,23 @@ function DashboardBuilder() {
               </DialogHeader>
               <ScrollArea className="h-[400px] w-full pr-4">
                 <div className="space-y-4">
-                  {savedQueries.map((query) => (
-                    <Card 
-                      key={query.id} 
-                      className="p-4 cursor-pointer hover:border-primary"
-                      onClick={() => {
-                        if (selectedWidgetData) {
-                          updateWidget(selectedWidgetData.id, { savedQuery: query });
-                          setShowQueryDialog(false);
-                        }
-                      }}
-                    >
+                  {savedQueries.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No saved queries available</p>
+                      <p className="text-sm text-muted-foreground mt-2">Run a query first to add it to dashboard</p>
+                    </div>
+                  ) : (
+                    savedQueries.map((query) => (
+                      <Card 
+                        key={query.id} 
+                        className="p-4 cursor-pointer hover:border-primary"
+                        onClick={() => {
+                          if (selectedWidgetData) {
+                            updateWidget(selectedWidgetData.id, { savedQuery: query });
+                            setShowQueryDialog(false);
+                          }
+                        }}
+                      >
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h4 className="font-medium">{query.title}</h4>
@@ -672,8 +694,9 @@ function DashboardBuilder() {
                       <pre className="text-xs bg-muted p-2 rounded-md">
                         {query.query_text}
                       </pre>
-                    </Card>
-                  ))}
+                      </Card>
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </DialogContent>

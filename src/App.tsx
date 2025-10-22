@@ -24,6 +24,8 @@ import NotFound from "./pages/NotFound";
 import JoinBounty from "./pages/JoinBounty";
 import PlaceBounty from "./pages/PlaceBounty";
 import SystemStatus from "./pages/SystemStatus";
+import DataExplorerPage from "./pages/DataExplorerPage";
+import LibraryPage from "./pages/LibraryPage";
 
 const queryClient = new QueryClient();
 
@@ -74,9 +76,24 @@ const App = () => (
                 <CreateBounty />
               </ProtectedRoute>
             } />
+            <Route path="/data-explorer" element={
+              <ProtectedRoute>
+                <DataExplorerPage />
+              </ProtectedRoute>
+            } />
             <Route path="/query" element={
               <ProtectedRoute>
                 <QueryEditor />
+              </ProtectedRoute>
+            } />
+            <Route path="/queries/new" element={
+              <ProtectedRoute>
+                <QueryEditor />
+              </ProtectedRoute>
+            } />
+            <Route path="/library/:type" element={
+              <ProtectedRoute>
+                <LibraryPage />
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={

@@ -13,6 +13,7 @@ import { Chart } from "@/components/ui/chart";
 import { AIDataInterpreter } from "@/components/ai/AIDataInterpreter";
 import { AIChatBox } from "@/components/ai/AIChatBox";
 import { AIFloatingButton } from "@/components/ai/AIFloatingButton";
+import { AISuggestions } from "@/components/ai/AISuggestions";
 import { bountyService, type Bounty } from "@/services/BountyService";
 
 const Index = () => {
@@ -114,12 +115,15 @@ const Index = () => {
                 </CardContent>
               </Card>
             </div>
-            <QuerySuggestions
-              onSelectQuery={(selectedQuery) => {
-                const encodedQuery = encodeURIComponent(selectedQuery);
-                window.location.href = `/query?q=${encodedQuery}`;
-              }}
-            />
+            <div className="space-y-6">
+              <AISuggestions />
+              <QuerySuggestions
+                onSelectQuery={(selectedQuery) => {
+                  const encodedQuery = encodeURIComponent(selectedQuery);
+                  window.location.href = `/query?q=${encodedQuery}`;
+                }}
+              />
+            </div>
           </div>
 
           {/* Recent Activity */}

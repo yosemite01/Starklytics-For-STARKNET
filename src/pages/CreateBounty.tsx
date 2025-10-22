@@ -22,7 +22,9 @@ import {
   Trophy,
   FileText,
   Clock,
-  Target
+  Target,
+  Search,
+  Eye
 } from 'lucide-react';
 import { bountyService } from '@/services/BountyService';
 import { useToast } from '@/components/ui/use-toast';
@@ -48,6 +50,28 @@ export default function CreateBounty() {
   });
 
   const [newTag, setNewTag] = useState('');
+  const [similarBounties, setSimilarBounties] = useState<any[]>([]);
+  const [showSimilar, setShowSimilar] = useState(false);
+
+  // Find similar bounties based on title and tags
+  const findSimilarBounties = () => {
+    const allBounties = bountyService.getAllBounties();
+    const keywords = formData.title.toLowerCase().split(' ').filter(word => word.length > 2);
+    const tags = formData.tags.map(tag => tag.toLowerCase());
+    
+    const similar = allBounties.filter(bounty => {
+      const titleMatch = keywords.some(keyword => 
+        bounty.title.toLowerCase().includes(keyword)
+      );
+      const tagMatch = tags.some(tag => 
+        bounty.tags?.some((bountyTag: string) => bountyTag.toLowerCase().includes(tag))
+      );
+      return titleMatch || tagMatch;
+    }).slice(0, 5);
+    
+    setSimilarBounties(similar);
+    setShowSimilar(true);
+  };
 
   // Calculate platform fee
   const platformFeePercentage = 5.0; // Default 5%
@@ -381,6 +405,15 @@ export default function CreateBounty() {
                         <Button type="button" variant="outline">
                           Save as Draft
                         </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={findSimilarBounties}
+                          disabled={!formData.title && formData.tags.length === 0}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Similar
+                        </Button>
                       </div>
                     </form>
                   </CardContent>
@@ -413,6 +446,39 @@ export default function CreateBounty() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Similar Bounties */}
+                {showSimilar && (
+                  <Card className="glass border-border">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center space-x-2">
+                        <Search className="w-5 h-5" />
+                        <span>Similar Bounties</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {similarBounties.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No similar bounties found</p>
+                      ) : (
+                        similarBounties.map((bounty) => (
+                          <div key={bounty.id} className="p-3 border border-border rounded-lg">
+                            <h4 className="font-medium text-sm mb-1">{bounty.title}</h4>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {bounty.reward.amount} {bounty.reward.currency}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {bounty.tags?.slice(0, 2).map((tag: string) => (
+                                <Badge key={tag} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Guidelines */}
                 <Card className="glass border-border">
