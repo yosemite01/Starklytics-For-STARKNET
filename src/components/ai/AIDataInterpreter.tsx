@@ -53,16 +53,18 @@ export function AIDataInterpreter({ rpcData }: AIDataInterpreterProps) {
         <CardTitle className="flex items-center space-x-2">
           <Brain className="w-5 h-5 text-primary animate-pulse-glow" />
           <span>AI Data Insights</span>
-          <Badge variant="secondary" className="text-xs">GPT-OSS 120B</Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex items-center space-x-2 text-muted-foreground">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-            <span>Analyzing data patterns...</span>
-          </div>
-        ) : (
+      <CardContent className="min-h-[160px]">
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg">
+              <div className="flex items-center space-x-2 text-muted-foreground">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <span>Analyzing data patterns...</span>
+              </div>
+            </div>
+          )}
           <div className="space-y-3">
             {insights.map((insight, index) => (
               <div key={index} className="flex items-start space-x-3 p-3 bg-muted/20 rounded-lg">
@@ -70,14 +72,14 @@ export function AIDataInterpreter({ rpcData }: AIDataInterpreterProps) {
                 <p className="text-sm">{insight}</p>
               </div>
             ))}
-            {insights.length === 0 && (
+            {insights.length === 0 && !loading && (
               <div className="flex items-center space-x-2 text-muted-foreground">
                 <AlertCircle className="w-4 h-4" />
                 <span className="text-sm">No significant patterns detected</span>
               </div>
             )}
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
