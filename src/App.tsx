@@ -26,6 +26,7 @@ import PlaceBounty from "./pages/PlaceBounty";
 import SystemStatus from "./pages/SystemStatus";
 import DataExplorerPage from "./pages/DataExplorerPage";
 import LibraryPage from "./pages/LibraryPage";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,11 @@ const App = () => (
             <Route path="/library/:type" element={
               <ProtectedRoute>
                 <LibraryPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminDashboard />
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={
