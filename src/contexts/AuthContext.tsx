@@ -19,7 +19,11 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }
+  ) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: (token: string, role?: 'analyst' | 'creator') => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -44,19 +48,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
+  // Demo auth mode (local-only), everything else uses production API
+  const isDemoAuth = true;
 
   const fetchProfile = async () => {
     try {
-      if (isDemoMode) {
+      if (isDemoAuth) {
         const storedUser = localStorage.getItem('demo_user');
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        setProfile({ ...userData, fullName: `${userData.firstName} ${userData.lastName}` });
+        if (storedUser) {
+          const userData = JSON.parse(storedUser) as User;
+          setUser(userData);
+          setProfile({
+            ...userData,
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          });
+        }
+      } else {
+        const response = await apiClient.get('/api/profile');
+        if (response?.data) {
+          const userData = response.data as User;
+          setUser(userData);
+          setProfile({
+            ...userData,
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      localStorage.removeItem('auth_token');
     }
   };
 
@@ -64,142 +85,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const initAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        if (token) {
-          await fetchProfile();
-        }
+        if (token) await fetchProfile();
       } catch (error) {
         console.error('Error loading session:', error);
-        apiClient.clearToken();
+        localStorage.removeItem('auth_token');
       }
-      
       setLoading(false);
-    };
-
-    initAuth();
-  }, []);
-
-  const signUp = async (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => {
-    try {
-      // Always use demo mode for now since backend might not be running
-      const newUser: User = {
-        _id: Date.now().toString(),
-        email,
-        firstName: userData?.firstName || 'Demo',
-        lastName: userData?.lastName || 'User',
-        role: userData?.role === 'creator' ? 'creator' : 'analyst',
-        isActive: true,
-        lastLogin: new Date()
-      };
-
-      const token = `demo_token_${Date.now()}`;
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('demo_user', JSON.stringify(newUser));
-
-      setUser(newUser);
-      setProfile({ ...newUser, fullName: `${newUser.firstName} ${newUser.lastName}` });
-
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
-
-      return { error: null };
-    } catch (error: any) {
-      console.error('Signup error:', error);
-      return { error: error.message || 'Signup failed' };
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      // Always use demo mode for now since backend might not be running
-      const demoUser: User = {
-        _id: 'demo_user_123',
-        email,
-        firstName: 'Demo',
-        lastName: 'User',
-        role: email.includes('creator') ? 'creator' : 'analyst',
-        isActive: true,
-        lastLogin: new Date()
-      };
-
-      const token = `demo_token_${Date.now()}`;
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('demo_user', JSON.stringify(demoUser));
-
-      setUser(demoUser);
-      setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
-
-      return { error: null };
-    } catch (error: any) {
-      console.error('Login error:', error);
-      return { error: error.message || 'Login failed' };
-    }
-  };
-
-  const signInWithGoogle = async (token: string, role: 'analyst' | 'creator' = 'analyst') => {
-    try {
-      // Demo Google login
-      const demoUser: User = {
-        _id: 'google_demo_user',
-        email: 'google_demo@starklytics.com',
-        firstName: 'Google',
-        lastName: 'Demo',
-        role: 'analyst',
-        isActive: true,
-        lastLogin: new Date()
-      };
-
-      const demoToken = `google_demo_token_${Date.now()}`;
-      localStorage.setItem('auth_token', demoToken);
-      localStorage.setItem('demo_user', JSON.stringify(demoUser));
-
-      setUser(demoUser);
-      setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
-
-      return { error: null };
-    } catch (error: any) {
-      console.error('Google sign-in error:', error);
-      return { error: error.message || 'Google authentication failed' };
-    }
-  };
-
-  const signOut = async () => {
-    apiClient.clearToken();
-    setUser(null);
-    setProfile(null);
-    window.location.href = '/auth';
-  };
-
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { error: 'No user found' };
-
-    try {
-      const updatedUser = { ...user, ...updates };
-      localStorage.setItem('demo_user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      setProfile({ ...updatedUser, fullName: `${updatedUser.firstName} ${updatedUser.lastName}` });
-      
-      return { error: null };
-    } catch (error: any) {
-      console.error('Error updating profile:', error);
-      return { error };
-    }
-  };
-
-  const value = {
-    user,
-    profile,
-    loading,
-    signUp,
-    signIn,
-    signInWithGoogle,
-    signOut,
-    updateProfile,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
