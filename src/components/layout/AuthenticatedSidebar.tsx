@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWallet } from "@/hooks/use-wallet";
+import { useQuerySaver } from "@/hooks/useQuerySaver";
 import { 
   BarChart3, 
   Database, 
@@ -50,14 +51,27 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [libraryExpanded, setLibraryExpanded] = useState(true);
   const [folders, setFolders] = useState([
-    { id: 1, name: "My Queries", type: "creations", count: 12 },
-    { id: 2, name: "Favorites", type: "favorites", count: 8 },
-    { id: 3, name: "Archived", type: "archived", count: 3 }
+    { id: 1, name: "My Queries", type: "creations", count: 0 },
+    { id: 2, name: "Favorites", type: "favorites", count: 0 },
+    { id: 3, name: "Archived", type: "archived", count: 0 }
   ]);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const { connectWallet, isConnected, walletAddress, detectWallets } = useWallet();
+  const { savedQueries } = useQuerySaver();
+
+  useEffect(() => {
+    const favorites = savedQueries.filter(q => q.isFavorite).length;
+    const archived = savedQueries.filter(q => q.isArchived).length;
+    const myQueries = savedQueries.filter(q => !q.isArchived).length;
+    
+    setFolders([
+      { id: 1, name: "My Queries", type: "creations", count: myQueries },
+      { id: 2, name: "Favorites", type: "favorites", count: favorites },
+      { id: 3, name: "Archived", type: "archived", count: archived }
+    ]);
+  }, [savedQueries]);
 
   const handleProfileClick = () => {
     navigate('/profile');
