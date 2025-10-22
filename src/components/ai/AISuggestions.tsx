@@ -89,19 +89,14 @@ export function AISuggestions() {
         }
       ];
 
+      // Delay to show loading state briefly
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       setSuggestions(newSuggestions);
       setLastUpdate(currentTime);
       
-      toast({
-        title: "Suggestions Updated",
-        description: "AI suggestions refreshed with latest network data",
-      });
     } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: "Could not fetch latest suggestions",
-        variant: "destructive",
-      });
+      console.error('Failed to update suggestions:', error);
     } finally {
       setLoading(false);
     }
@@ -130,10 +125,10 @@ export function AISuggestions() {
     }
   };
 
-  // Auto-refresh every hour
+  // Auto-refresh every 20 seconds
   useEffect(() => {
     generateSuggestions();
-    const interval = setInterval(generateSuggestions, 60 * 60 * 1000); // 1 hour
+    const interval = setInterval(generateSuggestions, 20 * 1000); // 20 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -179,46 +174,53 @@ export function AISuggestions() {
           </p>
         )}
         
-        {suggestions.length === 0 ? (
-          <div className="text-center py-8">
-            <Lightbulb className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">No suggestions available</p>
-          </div>
-        ) : (
-          suggestions.map((suggestion) => {
-            const IconComponent = getCategoryIcon(suggestion.category);
-            return (
-              <div
-                key={suggestion.id}
-                className="p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <IconComponent className="w-4 h-4 text-primary" />
-                    <h4 className="font-medium text-sm">{suggestion.title}</h4>
-                  </div>
-                  <Badge variant={getPriorityColor(suggestion.priority) as any} className="text-xs">
-                    {suggestion.priority}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">
-                  {suggestion.description}
-                </p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {suggestion.category}
-                  </Badge>
-                  {suggestion.rpcData?.blockNumber && (
-                    <span className="text-xs text-muted-foreground">
-                      Block: {suggestion.rpcData.blockNumber}
-                    </span>
+        <div className="space-y-4 min-h-[320px]">
+          {suggestions.length === 0 && !loading ? (
+            <div className="text-center py-8">
+              <Lightbulb className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No suggestions available</p>
+            </div>
+          ) : (
+            suggestions.map((suggestion) => {
+              const IconComponent = getCategoryIcon(suggestion.category);
+              return (
+                <div
+                  key={suggestion.id}
+                  className="p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors relative"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                >
+                  {loading && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
                   )}
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <IconComponent className="w-4 h-4 text-primary" />
+                      <h4 className="font-medium text-sm">{suggestion.title}</h4>
+                    </div>
+                    <Badge variant={getPriorityColor(suggestion.priority) as any} className="text-xs">
+                      {suggestion.priority}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {suggestion.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {suggestion.category}
+                    </Badge>
+                    {suggestion.rpcData?.blockNumber && (
+                      <span className="text-xs text-muted-foreground">
+                        Block: {suggestion.rpcData.blockNumber}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </CardContent>
     </Card>
   );
