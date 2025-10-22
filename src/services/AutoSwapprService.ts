@@ -20,7 +20,7 @@ export class AutoSwapprService {
 
   constructor() {
     this.provider = new RpcProvider({ nodeUrl: 'https://starknet-mainnet.reddio.com/rpc/v0_7' });
-    this.contractAddress = process.env.VITE_BOUNTY_CONTRACT_ADDRESS || '0x1234567890abcdef';
+    this.contractAddress = import.meta.env.VITE_BOUNTY_CONTRACT_ADDRESS || '0x1234567890abcdef';
   }
 
   async depositBountyFunds(request: DepositRequest): Promise<{ success: boolean; txHash?: string; error?: string }> {

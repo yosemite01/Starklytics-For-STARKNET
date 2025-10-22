@@ -99,8 +99,8 @@ async function fetchEvents(contractAddress: string) {
     const latest = await getLatestBlockNumber();
     console.log('Latest block:', latest);
     
-    // Try with a wider range - last 1000 blocks instead of 2 weeks
-    const fromBlock = Math.max(0, latest - 1000);
+    // Try with a wider range - last 5000 blocks for better chance of finding events
+    const fromBlock = Math.max(0, latest - 5000);
     console.log('Fetching events from block:', fromBlock, 'to', latest);
     
     const body = {
@@ -113,7 +113,7 @@ async function fetchEvents(contractAddress: string) {
           to_block: { block_number: latest },
           keys: []
         },
-        chunk_size: 100
+        chunk_size: 1000
       },
       id: 1
     };
@@ -130,6 +130,9 @@ async function fetchEvents(contractAddress: string) {
     console.log('RPC response:', data);
     
     if (data.error) {
+      if (data.error.message.includes('Contract not found')) {
+        throw new Error('Contract not found');
+      }
       throw new Error(data.error.message || 'RPC Error');
     }
     
@@ -146,9 +149,24 @@ export default function ContractEventsEDA() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const validateAddress = (addr: string) => {
+    const cleaned = addr.trim();
+    if (!cleaned) return false;
+    if (!cleaned.startsWith('0x')) return false;
+    if (cleaned.length !== 66) return false;
+    return /^0x[0-9a-fA-F]{64}$/.test(cleaned);
+  };
+
   const handleFetch = async () => {
-    if (!address.trim()) {
+    const cleanAddress = address.trim();
+    
+    if (!cleanAddress) {
       setError('Please enter a contract address');
+      return;
+    }
+    
+    if (!validateAddress(cleanAddress)) {
+      setError('Invalid contract address format. Must be 0x followed by 64 hex characters.');
       return;
     }
     
@@ -157,8 +175,8 @@ export default function ContractEventsEDA() {
     setEvents([]);
     
     try {
-      console.log('Fetching events for contract:', address?.replace(/[\r\n]/g, '').slice(0, 66));
-      const evs = await fetchEvents(address.trim());
+      console.log('Fetching events for contract:', cleanAddress);
+      const evs = await fetchEvents(cleanAddress);
       console.log('Events found:', evs.length);
       
       if (evs.length === 0) {
@@ -166,30 +184,34 @@ export default function ContractEventsEDA() {
         const demoEvents = [
           {
             block_number: 123456,
-            keys: ['0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9',
-                   '0x1234567890abcdef1234567890abcdef12345678'],
+            keys: ['0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9'],
             data: ['0x1', '0x5f5e100', '0x64'],
-            transaction_hash: '0x0123456789abcdef0123456789abcdef01234567',
-            event_name: 'BountyCreated'
+            transaction_hash: '0x0123456789abcdef0123456789abcdef01234567890abcdef0123456789abcdef',
+            event_name: 'Transfer'
           },
           {
             block_number: 123457,
-            keys: ['0x1dcde06aabdbca2732de817ba6614a4f4c1fb4ffcea3b8cf1a5e4c8c9e8e8e8',
-                   '0x2345678901bcdef2345678901bcdef23456789'],
+            keys: ['0x1dcde06aabdbca2732de817ba6614a4f4c1fb4ffcea3b8cf1a5e4c8c9e8e8e8'],
             data: ['0x1', '0x7890abcdef123456'],
-            transaction_hash: '0x1234567890abcdef1234567890abcdef12345678',
-            event_name: 'ParticipantJoined'
+            transaction_hash: '0x1234567890abcdef1234567890abcdef01234567890abcdef0123456789abcdef',
+            event_name: 'Approval'
           }
         ];
         setEvents(demoEvents);
-        setError(`No events found for contract ${address.slice(0,10)}... in the last 1000 blocks. This is normal for contracts with no recent activity. Showing demo events below.`);
+        setError(`✓ Contract address is valid, but no events found in the last 1000 blocks. This is normal for contracts with no recent activity. Showing sample events below.`);
       } else {
         setEvents(evs);
-        setError('');
+        setError(`✓ Successfully fetched ${evs.length} events from contract`);
       }
     } catch (e: any) {
       console.error('Fetch error:', e);
-      setError(`Failed to fetch events: ${e.message || 'Unknown error'}. Please check the contract address and try again.`);
+      if (e.message.includes('Contract not found')) {
+        setError('Contract not found. Please verify the address is deployed on Starknet mainnet.');
+      } else if (e.message.includes('Invalid contract address')) {
+        setError('Invalid contract address. Please check the format and try again.');
+      } else {
+        setError(`Network error: ${e.message}. Please try again or check your connection.`);
+      }
       setEvents([]);
     }
     setLoading(false);
@@ -209,35 +231,63 @@ export default function ContractEventsEDA() {
                 <div className="space-y-3">
                   <div className="flex space-x-2">
                     <Input
-                      placeholder="0x..."
+                      placeholder="0x07070d915635269ea0930fa1c538f2d026e02e5078884aeb007141c39f481eee"
                       value={address}
                       onChange={e => setAddress(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 font-mono text-sm"
+                      onKeyPress={(e) => e.key === 'Enter' && handleFetch()}
                     />
-                    <Button onClick={handleFetch} disabled={loading || !address}>
-                      {loading ? 'Loading...' : 'Fetch Events'}
+                    <Button 
+                      onClick={handleFetch} 
+                      disabled={loading}
+                      className="bg-gradient-to-r from-primary to-accent"
+                    >
+                      {loading ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                          <span>Fetching...</span>
+                        </div>
+                      ) : (
+                        'Fetch Events'
+                      )}
                     </Button>
                   </div>
                   <div className="flex space-x-2">
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => setAddress('0x07070d915635269ea0930fa1c538f2d026e02e5078884aeb007141c39f481eee')}
+                      onClick={() => {
+                        setAddress('0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7');
+                        setError('');
+                        setEvents([]);
+                      }}
                       className="flex-1"
                     >
-                      Starklytics Contract
+                      ETH Token
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => setAddress('0x067883deb1c1cb60756eb6e60d500081352441a040d5039d0e4ce9fed35d68c1')}
+                      onClick={() => {
+                        setAddress('0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d');
+                        setError('');
+                        setEvents([]);
+                      }}
                       className="flex-1"
                     >
-                      Test Contract
+                      STRK Token
                     </Button>
                   </div>
                 </div>
-                {error && <div className={`mt-2 ${error.includes('demo') ? 'text-yellow-500' : 'text-red-500'}`}>{error}</div>}
+                {error && (
+                  <div className={`mt-3 p-3 rounded-lg text-sm ${
+                    error.includes('✓') 
+                      ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
+                      : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                  }`}>
+                    {error}
+                  </div>
+                )}
               </CardContent>
             </Card>
             {(events.length > 0 || error.includes('demo')) && (

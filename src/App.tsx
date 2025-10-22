@@ -1,5 +1,4 @@
-import ContractEventsEDA from "./pages/ContractEventsEDA";
-import Docs from "./pages/Docs";
+import { Suspense, lazy } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,25 +8,31 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+// Core pages (immediately loaded)
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Profile from "./pages/Profile";
-import CreateBounty from "./pages/CreateBounty";
-import QueryEditor from "./pages/QueryEditor";
-import Analytics from "./pages/Analytics";
-import Bounties from "./pages/Bounties";
-import DashboardBuilder from "./pages/DashboardBuilder";
-import DataVisualization from "./pages/DataVisualization";
-import Wallet from "./pages/Wallet";
-import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import JoinBounty from "./pages/JoinBounty";
-import PlaceBounty from "./pages/PlaceBounty";
-import SystemStatus from "./pages/SystemStatus";
-import DataExplorerPage from "./pages/DataExplorerPage";
-import LibraryPage from "./pages/LibraryPage";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminLogin from "./pages/AdminLogin";
+
+// Lazily loaded pages
+const ContractEventsEDA = lazy(() => import("./pages/ContractEventsEDA"));
+const Docs = lazy(() => import("./pages/Docs"));
+const Profile = lazy(() => import("./pages/Profile"));
+const CreateBounty = lazy(() => import("./pages/CreateBounty"));
+const QueryEditor = lazy(() => import("./pages/QueryEditor"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Bounties = lazy(() => import("./pages/Bounties"));
+const DashboardBuilder = lazy(() => import("./pages/DashboardBuilder"));
+const DataVisualization = lazy(() => import("./pages/DataVisualization"));
+const Wallet = lazy(() => import("./pages/Wallet"));
+const Settings = lazy(() => import("./pages/Settings"));
+const JoinBounty = lazy(() => import("./pages/JoinBounty"));
+const PlaceBounty = lazy(() => import("./pages/PlaceBounty"));
+const SystemStatus = lazy(() => import("./pages/SystemStatus"));
+const DataExplorerPage = lazy(() => import("./pages/DataExplorerPage"));
+const LibraryPage = lazy(() => import("./pages/LibraryPage"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 
 const queryClient = new QueryClient();
 
@@ -39,14 +44,19 @@ const App = () => (
           <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/auth" element={
-              <ProtectedRoute requireAuth={false}>
-                <Auth />
-              </ProtectedRoute>
-            } />
+          <BrowserRouter>
+            <Suspense fallback={
+              <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              </div>
+            }>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/auth" element={
+                  <ProtectedRoute requireAuth={false}>
+                    <Auth />
+                  </ProtectedRoute>
+                } />
             
             <Route path="/docs" element={
                 <Docs />
@@ -144,7 +154,8 @@ const App = () => (
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
+            </Suspense>
+          </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
       </ThemeProvider>

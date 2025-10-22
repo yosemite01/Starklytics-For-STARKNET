@@ -45,45 +45,43 @@ export default defineConfig(({ mode, command }) => {
     }
   }
 
-  const config = {
+  return {
     server: {
       host: "::",
-      port: 8080
+      port: 8080,
     },
-    plugins: [react()],
+    plugins: [
+      react(),
+      mode === 'development' && componentTagger(),
+    ].filter(Boolean),
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src")
-      }
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
     build: {
-      sourcemap: mode === 'development',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'vendor-ui': [
-              '@radix-ui/react-alert-dialog',
-              '@radix-ui/react-dropdown-menu',
-              '@radix-ui/react-dialog',
-              '@radix-ui/react-toast',
-              '@radix-ui/react-tooltip'
-            ],
-            'vendor-charts': ['recharts', '@nivo/core', '@nivo/line', '@nivo/pie'],
-            'vendor-grid': ['react-grid-layout'],
-            'vendor-core': ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
-            'vendor-monaco': ['@monaco-editor/react']
-          }
+    sourcemap: process.env.NODE_ENV === 'development',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-ui': [
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-tooltip'
+          ],
+          'vendor-charts': ['recharts', '@nivo/core', '@nivo/line', '@nivo/pie'],
+          'vendor-grid': ['react-grid-layout'],
+          'vendor-core': ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
+          'vendor-monaco': ['@monaco-editor/react']
         }
       }
-    },
-    define: {
-      'global': 'globalThis'
     }
-  };
-
-  if (mode === 'development') {
-    config.plugins.push(componentTagger());
-  }
-
-  return config;
+      },
+    },
+  },
+  define: {
+    global: 'globalThis',
+  },
 });

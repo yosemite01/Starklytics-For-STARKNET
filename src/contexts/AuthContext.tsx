@@ -44,10 +44,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
   const fetchProfile = async () => {
     try {
-      const storedUser = localStorage.getItem('demo_user');
+      if (isDemoMode) {
+        const storedUser = localStorage.getItem('demo_user');
       if (storedUser) {
         const userData = JSON.parse(storedUser);
         setUser(userData);
