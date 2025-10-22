@@ -90,62 +90,40 @@ export interface BountyStats {
 export class BountyService {
   async getBounties(filters: any = {}): Promise<Bounty[]> {
     try {
-      // Get bounties from localStorage or use demo data
-      const stored = localStorage.getItem('demo_bounties');
-      const bounties = stored ? JSON.parse(stored) : DEMO_BOUNTIES;
-      
-      // Apply filters
-      let filtered = bounties;
-      if (filters.status) {
-        filtered = filtered.filter((b: Bounty) => b.status === filters.status);
-      }
-      
-      return filtered;
+      const response = await fetch('/api/bounties?' + new URLSearchParams(filters));
+      if (!response.ok) throw new Error('Failed to fetch bounties');
+      return await response.json();
     } catch (error) {
       console.error('Error fetching bounties:', error);
+      // Fallback to demo data if API fails
       return DEMO_BOUNTIES;
     }
   }
 
   async getBounty(id: string): Promise<Bounty | null> {
     try {
-      const stored = localStorage.getItem('demo_bounties');
-      const bounties = stored ? JSON.parse(stored) : DEMO_BOUNTIES;
-      return bounties.find((b: Bounty) => b._id === id) || null;
+      const response = await fetch(`/api/bounties/${id}`);
+      if (!response.ok) throw new Error('Failed to fetch bounty');
+      return await response.json();
     } catch (error) {
       console.error('Error fetching bounty:', error);
-      return null;
+      // Fallback to demo data
+      return DEMO_BOUNTIES.find((b: Bounty) => b._id === id) || null;
     }
   }
 
   async createBounty(bountyData: Partial<Bounty>): Promise<Bounty | null> {
     try {
-      const stored = localStorage.getItem('demo_bounties');
-      const bounties = stored ? JSON.parse(stored) : DEMO_BOUNTIES;
-      
-      const newBounty: Bounty = {
-        _id: Date.now().toString(),
-        title: bountyData.title || 'New Bounty',
-        description: bountyData.description || '',
-        reward: bountyData.reward || { amount: 100, currency: 'STRK' },
-        status: 'active',
-        priority: bountyData.priority || 'medium',
-        category: bountyData.category || 'other',
-        tags: bountyData.tags || [],
-        requirements: bountyData.requirements || [],
-        createdBy: 'demo_user_123',
-        submissions: [],
-        deadline: bountyData.deadline,
-        isPublic: bountyData.isPublic ?? true,
-        views: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      bounties.push(newBounty);
-      localStorage.setItem('demo_bounties', JSON.stringify(bounties));
-      
-      return newBounty;
+      const response = await fetch('/api/bounties', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify(bountyData)
+      });
+      if (!response.ok) throw new Error('Failed to create bounty');
+      return await response.json();
     } catch (error) {
       console.error('Error creating bounty:', error);
       throw error;
@@ -154,17 +132,16 @@ export class BountyService {
 
   async updateBounty(id: string, updates: Partial<Bounty>): Promise<Bounty | null> {
     try {
-      const stored = localStorage.getItem('demo_bounties');
-      const bounties = stored ? JSON.parse(stored) : DEMO_BOUNTIES;
-      
-      const index = bounties.findIndex((b: Bounty) => b._id === id);
-      if (index !== -1) {
-        bounties[index] = { ...bounties[index], ...updates, updatedAt: new Date() };
-        localStorage.setItem('demo_bounties', JSON.stringify(bounties));
-        return bounties[index];
-      }
-      
-      return null;
+      const response = await fetch(`/api/bounties/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) throw new Error('Failed to update bounty');
+      return await response.json();
     } catch (error) {
       console.error('Error updating bounty:', error);
       throw error;
@@ -173,9 +150,13 @@ export class BountyService {
 
   async joinBounty(id: string): Promise<boolean> {
     try {
-      // Simulate joining bounty
-      console.log(`Joined bounty ${id}`);
-      return true;
+      const response = await fetch(`/api/bounties/${id}/join`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      return response.ok;
     } catch (error) {
       console.error('Error joining bounty:', error);
       throw error;
@@ -184,9 +165,15 @@ export class BountyService {
 
   async submitSolution(id: string, solution: any): Promise<boolean> {
     try {
-      // Simulate solution submission
-      console.log(`Submitted solution for bounty ${String(id).replace(/[\r\n]/g, '')}`);
-      return true;
+      const response = await fetch(`/api/bounties/${id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify(solution)
+      });
+      return response.ok;
     } catch (error) {
       console.error('Error submitting solution:', error);
       throw error;
@@ -195,9 +182,15 @@ export class BountyService {
 
   async selectWinner(id: string, winnerId: string): Promise<boolean> {
     try {
-      // Simulate winner selection
-      console.log(`Selected winner ${winnerId} for bounty ${id}`);
-      return true;
+      const response = await fetch(`/api/bounties/${id}/winner`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ winnerId })
+      });
+      return response.ok;
     } catch (error) {
       console.error('Error selecting winner:', error);
       throw error;
@@ -206,21 +199,9 @@ export class BountyService {
 
   async getStats(): Promise<BountyStats> {
     try {
-      const stored = localStorage.getItem('demo_bounties');
-      const bounties = stored ? JSON.parse(stored) : DEMO_BOUNTIES;
-      
-      const activeBounties = bounties.filter((b: Bounty) => b.status === 'active').length;
-      const completedBounties = bounties.filter((b: Bounty) => b.status === 'completed').length;
-      const totalRewards = bounties.reduce((sum: number, b: Bounty) => sum + b.reward.amount, 0);
-      
-      return {
-        totalBounties: bounties.length,
-        activeBounties,
-        completedBounties,
-        totalRewards,
-        activeParticipants: 15, // Demo value
-        completedThisMonth: 3, // Demo value
-      };
+      const response = await fetch('/api/bounties/stats');
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      return await response.json();
     } catch (error) {
       console.error('Error fetching stats:', error);
       return {

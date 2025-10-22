@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 
 
 const RPC_ENDPOINTS = [
-  'https://starknet-mainnet.reddio.com/rpc/v0_7',
   'https://starknet-mainnet.public.blastapi.io',
-  'https://free-rpc.nethermind.io/mainnet-juno'
+  'https://free-rpc.nethermind.io/mainnet-juno',
+  'https://starknet-mainnet.reddio.com/rpc/v0_7',
+  'https://rpc.starknet.lava.build'
 ];
 
 let currentRpcIndex = 0;
@@ -95,52 +96,36 @@ async function estimateBlockFromTwoWeeksAgo() {
 }
 
 async function fetchEvents(contractAddress: string) {
-  try {
-    const latest = await getLatestBlockNumber();
-    console.log('Latest block:', latest);
-    
-    // Try with a wider range - last 5000 blocks for better chance of finding events
-    const fromBlock = Math.max(0, latest - 5000);
-    console.log('Fetching events from block:', fromBlock, 'to', latest);
-    
-    const body = {
-      jsonrpc: "2.0",
-      method: "starknet_getEvents",
-      params: {
-        filter: {
-          address: contractAddress,
-          from_block: { block_number: fromBlock },
-          to_block: { block_number: latest },
-          keys: []
-        },
-        chunk_size: 1000
-      },
-      id: 1
-    };
-    
-    console.log('Fetching events with body:', body);
-    
-    const res = await fetch(getRpcUrl(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    
-    const data = await res.json();
-    console.log('RPC response:', data);
-    
-    if (data.error) {
-      if (data.error.message.includes('Contract not found')) {
-        throw new Error('Contract not found');
+  const { RpcProvider } = await import('starknet');
+  
+  for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+    try {
+      console.log('Trying RPC:', getRpcUrl());
+      const provider = new RpcProvider({ nodeUrl: getRpcUrl() });
+      
+      const latest = await provider.getBlockNumber();
+      const fromBlock = Math.max(0, latest - 1000);
+      
+      console.log('Fetching events from block:', fromBlock, 'to', latest);
+      
+      const events = await provider.getEvents({
+        address: contractAddress,
+        from_block: { block_number: fromBlock },
+        to_block: { block_number: latest },
+        chunk_size: 100
+      });
+      
+      console.log('Events found:', events.events?.length || 0);
+      return events.events || [];
+    } catch (error) {
+      console.error('RPC failed:', getRpcUrl(), error);
+      switchToNextRpc();
+      if (i === RPC_ENDPOINTS.length - 1) {
+        throw error;
       }
-      throw new Error(data.error.message || 'RPC Error');
     }
-    
-    return data.result ? data.result.events || [] : [];
-  } catch (e) {
-    console.error('Error fetching events:', e);
-    throw e;
   }
+  throw new Error('All RPC endpoints failed');
 }
 
 export default function ContractEventsEDA() {
@@ -179,28 +164,10 @@ export default function ContractEventsEDA() {
       const evs = await fetchEvents(cleanAddress);
       console.log('Events found:', evs.length);
       
+      setEvents(evs);
       if (evs.length === 0) {
-        // Show demo events for contracts with no activity
-        const demoEvents = [
-          {
-            block_number: 123456,
-            keys: ['0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9'],
-            data: ['0x1', '0x5f5e100', '0x64'],
-            transaction_hash: '0x0123456789abcdef0123456789abcdef01234567890abcdef0123456789abcdef',
-            event_name: 'Transfer'
-          },
-          {
-            block_number: 123457,
-            keys: ['0x1dcde06aabdbca2732de817ba6614a4f4c1fb4ffcea3b8cf1a5e4c8c9e8e8e8'],
-            data: ['0x1', '0x7890abcdef123456'],
-            transaction_hash: '0x1234567890abcdef1234567890abcdef01234567890abcdef0123456789abcdef',
-            event_name: 'Approval'
-          }
-        ];
-        setEvents(demoEvents);
-        setError(`✓ Contract address is valid, but no events found in the last 1000 blocks. This is normal for contracts with no recent activity. Showing sample events below.`);
+        setError(`✓ Contract address is valid, but no events found in the last 1000 blocks.`);
       } else {
-        setEvents(evs);
         setError(`✓ Successfully fetched ${evs.length} events from contract`);
       }
     } catch (e: any) {
