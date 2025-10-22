@@ -80,6 +80,47 @@ Starklytics Suite is a **production-ready, enterprise-grade platform** that revo
 
 ---
 
+## 🌍 **Production Environment Setup**
+
+Before deploying to production, ensure you have configured the following environment variables properly. These are critical for the application's security and functionality:
+
+### Required Environment Variables
+
+1. **API Configuration**
+   - `VITE_API_URL`: Your production API endpoint
+   - `VITE_APP_ENV`: Set to 'production'
+
+2. **Starknet Configuration**
+   - `VITE_STARKNET_RPC_URL`: Production RPC endpoint (recommended: Infura/Alchemy)
+   - `VITE_BOUNTY_CONTRACT_ADDRESS`: Your deployed contract address
+
+3. **Integration Services**
+   - `VITE_AUTOSWAPPR_API_URL`: AutoSwappr production API
+   - `VITE_GPT_OSS_ENDPOINT`: Your GPT service endpoint (if using AI features)
+
+4. **Authentication**
+   - `VITE_CAVOS_CLIENT_ID`: Your Cavos production client ID
+   - OAuth IDs (if implemented):
+     - `VITE_GOOGLE_CLIENT_ID`
+     - `VITE_GITHUB_CLIENT_ID`
+     - `VITE_TWITTER_CLIENT_ID`
+
+5. **Security & Services**
+   - `VITE_EMAIL_SERVICE_KEY`: Production email service API key
+
+### Production Checklist
+
+✅ Set all environment variables in your deployment platform
+✅ Deploy smart contracts to mainnet
+✅ Configure proper rate limits
+✅ Enable production error logging
+✅ Set up monitoring and alerts
+✅ Configure proper CORS settings
+✅ Enable SSL/TLS
+✅ Set up database backups
+
+---
+
 ## 🚀 **Quick Deploy**
 
 ### One-Click Deployment

@@ -44,17 +44,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const isDemoAuth = true; // Only authentication is demo, everything else is production
 
   const fetchProfile = async () => {
     try {
-      const storedUser = localStorage.getItem('demo_user');
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        setProfile({ ...userData, fullName: `${userData.firstName} ${userData.lastName}` });
+      if (isDemoAuth) {
+        const storedUser = localStorage.getItem('demo_user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser) as User;
+          setUser(userData);
+          setProfile({ ...userData, fullName: `${userData.firstName || ''} ${userData.lastName || ''}` });
+        }
+      } else {
+        const response = await apiClient.get('/api/profile');
+        if (response && typeof response === 'object' && 'data' in response) {
+          const userData = (response.data as User);
+          setUser(userData);
+          setProfile({ 
+            ...userData, 
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}` 
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      localStorage.removeItem('auth_token');
     }
   };
 
@@ -67,7 +81,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       } catch (error) {
         console.error('Error loading session:', error);
-        apiClient.clearToken();
+        localStorage.removeItem('auth_token');
       }
       
       setLoading(false);
@@ -78,7 +92,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => {
     try {
-      // Always use demo mode for now since backend might not be running
       const newUser: User = {
         _id: Date.now().toString(),
         email,
@@ -95,11 +108,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       setUser(newUser);
       setProfile({ ...newUser, fullName: `${newUser.firstName} ${newUser.lastName}` });
-
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
-
       return { error: null };
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -109,7 +117,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Always use demo mode for now since backend might not be running
       const demoUser: User = {
         _id: 'demo_user_123',
         email,
@@ -126,7 +133,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       setUser(demoUser);
       setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
-
       return { error: null };
     } catch (error: any) {
       console.error('Login error:', error);
@@ -136,7 +142,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signInWithGoogle = async (token: string, role: 'analyst' | 'creator' = 'analyst') => {
     try {
-      // Demo Google login
       const demoUser: User = {
         _id: 'google_demo_user',
         email: 'google_demo@starklytics.com',
@@ -153,7 +158,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       setUser(demoUser);
       setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
-
       return { error: null };
     } catch (error: any) {
       console.error('Google sign-in error:', error);
@@ -172,12 +176,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!user) return { error: 'No user found' };
 
     try {
-      const updatedUser = { ...user, ...updates };
-      localStorage.setItem('demo_user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      setProfile({ ...updatedUser, fullName: `${updatedUser.firstName} ${updatedUser.lastName}` });
-      
-      return { error: null };
+      if (isDemoAuth) {
+        const updatedUser = { ...user, ...updates };
+        localStorage.setItem('demo_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        setProfile({ ...updatedUser, fullName: `${updatedUser.firstName} ${updatedUser.lastName}` });
+        return { error: null };
+      } else {
+        const response = await apiClient.updateProfile(updates);
+        if (response) {
+          await fetchProfile();
+          return { error: null };
+        }
+        return { error: 'Failed to update profile' };
+      }
     } catch (error: any) {
       console.error('Error updating profile:', error);
       return { error };
