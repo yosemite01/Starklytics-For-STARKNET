@@ -4,6 +4,8 @@ import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Download, BarChart3, PieChart, TrendingUp } from 'lucide-react';
 
 
 const RPC_ENDPOINTS = [
@@ -104,19 +106,89 @@ async function fetchEvents(contractAddress: string) {
       const provider = new RpcProvider({ nodeUrl: getRpcUrl() });
       
       const latest = await provider.getBlockNumber();
-      const fromBlock = Math.max(0, latest - 1000);
+      const fromBlock = Math.max(0, latest - 50000);
       
       console.log('Fetching events from block:', fromBlock, 'to', latest);
       
-      const events = await provider.getEvents({
+      console.log('Query params:', {
         address: contractAddress,
         from_block: { block_number: fromBlock },
         to_block: { block_number: latest },
         chunk_size: 100
       });
       
+      const events = await provider.getEvents({
+        address: contractAddress,
+        from_block: { block_number: fromBlock },
+        to_block: { block_number: latest },
+        chunk_size: 1000
+      });
+      
       console.log('Events found:', events.events?.length || 0);
-      return events.events || [];
+      
+      // Enhanced event decoding with meaningful data extraction
+      const decodedEvents = (events.events || []).map(event => {
+        let eventName = 'Unknown Event';
+        let decodedData: any = {};
+        
+        if (event.keys && event.keys.length > 0) {
+          const eventKey = event.keys[0];
+          
+          // Transfer event
+          if (eventKey === '0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9') {
+            eventName = 'Transfer';
+            if (event.data && event.data.length >= 3) {
+              decodedData = {
+                from: event.data[0],
+                to: event.data[1],
+                amount: parseInt(event.data[2], 16).toString()
+              };
+            }
+          }
+          // Approval event
+          else if (eventKey === '0x1dcde06aabdbca2f80aa51392b345d7549d7757aa855f7e37f5d335ac8243b1') {
+            eventName = 'Approval';
+            if (event.data && event.data.length >= 3) {
+              decodedData = {
+                owner: event.data[0],
+                spender: event.data[1],
+                amount: parseInt(event.data[2], 16).toString()
+              };
+            }
+          }
+          // Swap events (common in DEX)
+          else if (eventKey.includes('302b4aa3237648863fc569a648f3625780753ababf66d86fd6f7e7bbc648c63')) {
+            eventName = 'Swap';
+            if (event.data && event.data.length >= 4) {
+              decodedData = {
+                user: event.data[0],
+                token_in: event.data[1],
+                token_out: event.data[2],
+                amount: parseInt(event.data[3], 16).toString()
+              };
+            }
+          }
+          // Deposit/Withdrawal events
+          else if (eventKey.includes('1dcde06aabdbca2f80aa51392b345d7549d7757aa855f7e37f5d335ac8243b1')) {
+            eventName = event.data && event.data[0] === '0x1' ? 'Deposit' : 'Withdrawal';
+            if (event.data && event.data.length >= 2) {
+              decodedData = {
+                user: event.keys[1] || 'Unknown',
+                amount: parseInt(event.data[1] || '0', 16).toString()
+              };
+            }
+          }
+        }
+        
+        return { 
+          ...event, 
+          event_name: eventName,
+          decoded_data: decodedData,
+          timestamp: new Date().toISOString() // Add timestamp
+        };
+      });
+      
+      return decodedEvents;
     } catch (error) {
       console.error('RPC failed:', getRpcUrl(), error);
       switchToNextRpc();
@@ -133,6 +205,7 @@ export default function ContractEventsEDA() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stats, setStats] = useState<any>(null);
 
   const validateAddress = (addr: string) => {
     const cleaned = addr.trim();
@@ -165,10 +238,33 @@ export default function ContractEventsEDA() {
       console.log('Events found:', evs.length);
       
       setEvents(evs);
-      if (evs.length === 0) {
-        setError(`✓ Contract address is valid, but no events found in the last 1000 blocks.`);
-      } else {
+      
+      // Calculate stats like Dune
+      if (evs.length > 0) {
+        const eventTypes = evs.reduce((acc: any, ev) => {
+          const type = ev.event_name || 'Unknown';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {});
+        
+        const blocks = [...new Set(evs.map(ev => ev.block_number))];
+        const transactions = [...new Set(evs.map(ev => ev.transaction_hash))];
+        
+        setStats({
+          totalEvents: evs.length,
+          uniqueBlocks: blocks.length,
+          uniqueTransactions: transactions.length,
+          eventTypes,
+          dateRange: {
+            from: Math.min(...blocks),
+            to: Math.max(...blocks)
+          }
+        });
+        
         setError(`✓ Successfully fetched ${evs.length} events from contract`);
+      } else {
+        setStats(null);
+        setError(`✓ Contract address is valid, but no events found in the last 50,000 blocks.`);
       }
     } catch (e: any) {
       console.error('Fetch error:', e);
@@ -182,6 +278,43 @@ export default function ContractEventsEDA() {
       setEvents([]);
     }
     setLoading(false);
+  };
+
+  const exportToCSV = () => {
+    if (events.length === 0) return;
+    
+    const headers = ['Block', 'Event Type', 'From/User', 'To/Target', 'Amount', 'Tx Hash'];
+    const csvContent = [
+      headers.join(','),
+      ...events.map(ev => [
+        ev.block_number,
+        ev.event_name || 'Unknown Event',
+        ev.decoded_data?.from || ev.decoded_data?.user || ev.decoded_data?.owner || 'N/A',
+        ev.decoded_data?.to || ev.decoded_data?.spender || ev.decoded_data?.token_out || 'N/A',
+        ev.decoded_data?.amount ? (parseInt(ev.decoded_data.amount) / 1e18).toFixed(6) : 'N/A',
+        ev.transaction_hash || 'N/A'
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contract_events_${address.slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToJSON = () => {
+    if (events.length === 0) return;
+    
+    const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contract_events_${address.slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -257,47 +390,128 @@ export default function ContractEventsEDA() {
                 )}
               </CardContent>
             </Card>
-            {(events.length > 0 || error.includes('demo')) && (
-              <Card className="glass max-w-4xl mx-auto">
+            
+            {/* Stats Overview - Dune Style */}
+            {stats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-6xl mx-auto">
+                <Card className="glass">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Total Events</span>
+                    </div>
+                    <p className="text-2xl font-bold">{stats.totalEvents}</p>
+                  </CardContent>
+                </Card>
+                <Card className="glass">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Unique Blocks</span>
+                    </div>
+                    <p className="text-2xl font-bold">{stats.uniqueBlocks}</p>
+                  </CardContent>
+                </Card>
+                <Card className="glass">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <PieChart className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Transactions</span>
+                    </div>
+                    <p className="text-2xl font-bold">{stats.uniqueTransactions}</p>
+                  </CardContent>
+                </Card>
+                <Card className="glass">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Block Range</span>
+                    </div>
+                    <p className="text-sm font-mono">{stats.dateRange.from} - {stats.dateRange.to}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
+            {/* Event Types Distribution */}
+            {stats && (
+              <Card className="glass max-w-6xl mx-auto">
                 <CardHeader>
+                  <CardTitle>Event Types Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(stats.eventTypes).map(([type, count]: [string, any]) => (
+                      <Badge key={type} variant="secondary" className="px-3 py-1">
+                        {type}: {count}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {events.length > 0 && (
+              <Card className="glass max-w-6xl mx-auto">
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Contract Events ({events.length} found)</CardTitle>
+                  <div className="flex space-x-2">
+                    <Button onClick={exportToCSV} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </Button>
+                    <Button onClick={exportToJSON} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export JSON
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {events.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <p>No events found for this contract.</p>
-                      <p className="text-sm mt-2">This is normal for newly deployed contracts with no activity.</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {events.map((ev, i) => (
-                        <div key={i} className="border border-border rounded-lg p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="font-semibold text-sm text-muted-foreground">Block Number</h4>
-                              <p className="font-mono">{ev.block_number}</p>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-sm text-muted-foreground">Event Type</h4>
-                              <p>{ev.event_name || 'Unknown Event'}</p>
-                            </div>
-                            <div className="md:col-span-2">
-                              <h4 className="font-semibold text-sm text-muted-foreground">Event Keys</h4>
-                              <p className="font-mono text-xs break-all">{ev.keys?.join(', ') || 'No keys'}</p>
-                            </div>
-                            <div className="md:col-span-2">
-                              <h4 className="font-semibold text-sm text-muted-foreground">Event Data</h4>
-                              <p className="font-mono text-xs break-all">{ev.data?.join(', ') || 'No data'}</p>
-                            </div>
-                            {ev.transaction_hash && (
-                              <div className="md:col-span-2">
-                                <h4 className="font-semibold text-sm text-muted-foreground">Transaction Hash</h4>
-                                <p className="font-mono text-xs break-all">{ev.transaction_hash}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-border">
+                        <thead>
+                          <tr className="bg-muted/50">
+                            <th className="border border-border px-3 py-2 text-left font-semibold">Block</th>
+                            <th className="border border-border px-3 py-2 text-left font-semibold">Event Type</th>
+                            <th className="border border-border px-3 py-2 text-left font-semibold">From/User</th>
+                            <th className="border border-border px-3 py-2 text-left font-semibold">To/Target</th>
+                            <th className="border border-border px-3 py-2 text-left font-semibold">Amount/Value</th>
+                            <th className="border border-border px-3 py-2 text-left font-semibold">Tx Hash</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {events.map((ev, i) => (
+                            <tr key={i} className="hover:bg-muted/30">
+                              <td className="border border-border px-3 py-2 font-mono text-sm">{ev.block_number}</td>
+                              <td className="border border-border px-3 py-2">
+                                <Badge variant={ev.event_name === 'Transfer' ? 'default' : ev.event_name === 'Approval' ? 'secondary' : 'outline'}>
+                                  {ev.event_name || 'Unknown'}
+                                </Badge>
+                              </td>
+                              <td className="border border-border px-3 py-2 font-mono text-xs">
+                                {ev.decoded_data?.from || ev.decoded_data?.user || ev.decoded_data?.owner || 'N/A'}
+                              </td>
+                              <td className="border border-border px-3 py-2 font-mono text-xs">
+                                {ev.decoded_data?.to || ev.decoded_data?.spender || ev.decoded_data?.token_out || 'N/A'}
+                              </td>
+                              <td className="border border-border px-3 py-2 font-mono text-sm">
+                                {ev.decoded_data?.amount ? 
+                                  (parseInt(ev.decoded_data.amount) / 1e18).toFixed(6) + ' tokens' : 
+                                  'N/A'
+                                }
+                              </td>
+                              <td className="border border-border px-3 py-2 font-mono text-xs break-all max-w-xs">
+                                {ev.transaction_hash?.slice(0, 10)}...{ev.transaction_hash?.slice(-8) || 'N/A'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </CardContent>
