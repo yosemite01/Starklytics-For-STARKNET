@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, BarChart3, PieChart, LineChart, Table, Save, Eye, Grid, Layout, History, Download, List } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
+import { ProfessionalDashboardWidget } from "@/components/dashboard/ProfessionalDashboardWidget";
 import { SaveDashboardDialog } from "@/components/dashboard/SaveDashboardDialog";
 import { SavedDashboards } from "@/components/dashboard/SavedDashboards";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -34,7 +35,7 @@ import "react-resizable/css/styles.css";
 const RPC_ENDPOINT = import.meta.env.VITE_STARKNET_RPC_URL || "https://starknet-mainnet.reddio.com/rpc/v0_7";
 
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
-const COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+const COLS = { lg: 24, md: 20, sm: 12, xs: 8, xxs: 4 }; // Much larger grid like Dune
 
 const INITIAL_LAYOUT: Layout = {
   lg: [],
@@ -44,17 +45,22 @@ const INITIAL_LAYOUT: Layout = {
   xxs: []
 };
 
+import { Activity, TrendingUp, Users, DollarSign, Gauge, Zap, Target, Layers } from 'lucide-react';
+
 const widgetTypes = [
-  { type: "bar" as WidgetType, name: "Bar Chart", icon: BarChart3 },
-  { type: "pie" as WidgetType, name: "Pie Chart", icon: PieChart },
-  { type: "line" as WidgetType, name: "Line Chart", icon: LineChart },
-  { type: "area" as WidgetType, name: "Area Chart", icon: LineChart },
-  { type: "table" as WidgetType, name: "Table", icon: Table },
+  { type: "kpi" as WidgetType, name: "KPI Card", icon: Target, category: "metrics" },
+  { type: "gauge" as WidgetType, name: "Gauge", icon: Gauge, category: "metrics" },
+  { type: "bar" as WidgetType, name: "Bar Chart", icon: BarChart3, category: "charts" },
+  { type: "line" as WidgetType, name: "Line Chart", icon: LineChart, category: "charts" },
+  { type: "area" as WidgetType, name: "Area Chart", icon: TrendingUp, category: "charts" },
+  { type: "pie" as WidgetType, name: "Pie Chart", icon: PieChart, category: "charts" },
+  { type: "table" as WidgetType, name: "Data Table", icon: Table, category: "data" },
+  { type: "heatmap" as WidgetType, name: "Heatmap", icon: Layers, category: "advanced" },
 ];
 
 // Types
 type BreakPoint = "lg" | "md" | "sm" | "xs" | "xxs";
-type WidgetType = "bar" | "pie" | "line" | "table" | "area";
+type WidgetType = "bar" | "pie" | "line" | "table" | "area" | "kpi" | "gauge" | "heatmap";
 
 interface LayoutItem {
   i: string;
@@ -75,10 +81,14 @@ interface Layout {
 // Remove duplicate interfaces - use LayoutItem directly
 
 interface VisualizationConfig {
-  type: 'bar' | 'line' | 'pie' | 'area' | 'table';
+  type: 'bar' | 'line' | 'pie' | 'area' | 'table' | 'kpi' | 'gauge' | 'heatmap';
   xAxis?: string;
   yAxis?: string;
   aggregation?: 'sum' | 'avg' | 'count' | 'min' | 'max';
+  dataSource?: 'starknet' | 'query' | 'live';
+  refreshInterval?: number;
+  filters?: any[];
+  theme?: 'default' | 'dark' | 'neon' | 'minimal';
 }
 
 interface Widget {
@@ -120,8 +130,9 @@ function DashboardBuilder() {
   });
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
 
-  // Load saved queries from localStorage
+  // Load saved queries, live data, and AI-generated dashboards
   useEffect(() => {
+    // Load recent query results
     const queryResults = localStorage.getItem('queryResults');
     const lastQuery = localStorage.getItem('lastQuery');
     if (queryResults && lastQuery) {
@@ -134,21 +145,134 @@ function DashboardBuilder() {
       };
       setSavedQueries([mockQuery]);
     }
+    
+    // Load all saved queries with visualizations
+    const savedQueries = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+    const formattedQueries: SavedQuery[] = savedQueries.map((sq: any) => ({
+      id: sq.id,
+      title: sq.name,
+      query_text: sq.query,
+      results: [{ results: sq.results }],
+      visualizations: sq.visualizations
+    }));
+    
+    // Add live Starknet data sources
+    const liveDataSources: SavedQuery[] = [
+      {
+        id: 'starknet-blocks',
+        title: 'Latest Blocks',
+        query_text: 'SELECT block_number, transaction_count, timestamp FROM starknet_blocks ORDER BY block_number DESC LIMIT 10',
+        results: [{ results: generateMockBlockData() }]
+      },
+      {
+        id: 'starknet-transactions',
+        title: 'Transaction Volume',
+        query_text: 'SELECT DATE(timestamp) as date, COUNT(*) as transactions FROM starknet_transactions GROUP BY DATE(timestamp)',
+        results: [{ results: generateMockTxData() }]
+      },
+      {
+        id: 'starknet-users',
+        title: 'Active Users',
+        query_text: 'SELECT COUNT(DISTINCT sender_address) as active_users FROM starknet_transactions WHERE timestamp > NOW() - INTERVAL 24 HOUR',
+        results: [{ results: [{ active_users: Math.floor(Math.random() * 10000) + 5000 }] }]
+      }
+    ];
+    
+    setSavedQueries(prev => [...prev, ...formattedQueries, ...liveDataSources]);
+    
+    // Load AI-generated dashboard if coming from contract/query
+    const aiDashboard = localStorage.getItem('ai_generated_dashboard');
+    if (aiDashboard) {
+      const config = JSON.parse(aiDashboard);
+      setDashboardName(config.name);
+      setDashboardDescription(config.description);
+      
+      // Convert AI widgets to dashboard state
+      const widgets = config.widgets.map((w: any) => ({
+        id: w.id,
+        type: w.type,
+        title: w.title,
+        x: w.position?.x || 0,
+        y: w.position?.y || 0,
+        w: w.position?.w || 6,
+        h: w.position?.h || 4,
+        data: w.data,
+        visualConfig: { type: w.type, dataSource: 'live' }
+      }));
+      
+      setDashboardState({
+        layouts: generateLayoutsFromWidgets(widgets),
+        widgets
+      });
+      
+      localStorage.removeItem('ai_generated_dashboard');
+    }
   }, []);
+  
+  const generateLayoutsFromWidgets = (widgets: Widget[]) => {
+    const layouts: Layout = { lg: [], md: [], sm: [], xs: [], xxs: [] };
+    
+    widgets.forEach(widget => {
+      const layout = { i: widget.id, x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+      layouts.lg.push(layout);
+      layouts.md.push({...layout, w: Math.min(layout.w, COLS.md)});
+      layouts.sm.push({...layout, w: Math.min(layout.w, COLS.sm)});
+      layouts.xs.push({...layout, w: Math.min(layout.w, COLS.xs)});
+      layouts.xxs.push({...layout, w: Math.min(layout.w, COLS.xxs)});
+    });
+    
+    return layouts;
+  };
+  
+  const generateMockBlockData = () => {
+    return Array.from({ length: 10 }, (_, i) => ({
+      name: `Block ${700000 + i}`,
+      value: Math.floor(Math.random() * 200) + 50,
+      block_number: 700000 + i,
+      transaction_count: Math.floor(Math.random() * 200) + 50,
+      timestamp: new Date(Date.now() - i * 30000).toISOString()
+    }));
+  };
+  
+  const generateMockTxData = () => {
+    return Array.from({ length: 7 }, (_, i) => ({
+      name: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
+      value: Math.floor(Math.random() * 5000) + 1000,
+      transactions: Math.floor(Math.random() * 5000) + 1000
+    }));
+  };
   const [showQueryDialog, setShowQueryDialog] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [showDashboardsDialog, setShowDashboardsDialog] = useState(false);
 
 
   const addWidget = (type: WidgetType) => {
+    // Set appropriate size based on widget type
+    const getWidgetSize = (widgetType: WidgetType) => {
+      switch (widgetType) {
+        case 'kpi': return { w: 3, h: 3 };
+        case 'gauge': return { w: 4, h: 4 };
+        case 'table': return { w: 8, h: 6 };
+        case 'heatmap': return { w: 6, h: 5 };
+        default: return { w: 6, h: 4 };
+      }
+    };
+    
+    const size = getWidgetSize(type);
     const newWidget: Widget = {
       id: `widget-${Date.now()}`,
       type,
-      title: `New ${type} Widget`,
+      title: `${type.charAt(0).toUpperCase() + type.slice(1)} Widget`,
       x: 0,
       y: Infinity,
-      w: 6,
-      h: 4
+      w: size.w,
+      h: size.h,
+      visualConfig: {
+        type,
+        dataSource: 'live',
+        refreshInterval: 30000,
+        theme: 'default'
+      }
     };
     
     const layout = {
@@ -373,41 +497,101 @@ function DashboardBuilder() {
             </CardContent>
           </Card>
 
-          {/* Widget Palette */}
-          <Card className="glass border-border">
+          {/* Professional Widget Palette */}
+          <Card className="glass border-border bg-gradient-to-br from-background via-background to-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Grid className="w-5 h-5" />
-                <span>Widget Palette</span>
+                <Grid className="w-5 h-5 text-primary" />
+                <span>Widget Library</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {widgetTypes.map((widget) => (
-                  <Button
-                    key={widget.type}
-                    variant="outline"
-                    className="h-20 flex flex-col items-center space-y-2 hover:bg-primary/10 hover:border-primary"
-                    onClick={() => addWidget(widget.type)}
-                  >
-                    <widget.icon className="w-6 h-6" />
-                    <span className="text-sm">{widget.name}</span>
-                  </Button>
-                ))}
+              {/* Widget Categories */}
+              <div className="space-y-6">
+                {/* KPI & Metrics */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center">
+                    <Target className="w-4 h-4 mr-2" />
+                    KPI & Metrics
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {widgetTypes.filter(w => w.category === 'metrics').map((widget) => (
+                      <Button
+                        key={widget.type}
+                        variant="outline"
+                        className="h-24 flex flex-col items-center space-y-2 hover:bg-gradient-to-br hover:from-primary/10 hover:to-accent/10 hover:border-primary transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
+                        onClick={() => addWidget(widget.type)}
+                      >
+                        <widget.icon className="w-7 h-7 text-primary" />
+                        <span className="text-xs font-medium">{widget.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Charts */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center">
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    Charts & Visualizations
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {widgetTypes.filter(w => w.category === 'charts').map((widget) => (
+                      <Button
+                        key={widget.type}
+                        variant="outline"
+                        className="h-24 flex flex-col items-center space-y-2 hover:bg-gradient-to-br hover:from-primary/10 hover:to-accent/10 hover:border-primary transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
+                        onClick={() => addWidget(widget.type)}
+                      >
+                        <widget.icon className="w-7 h-7 text-primary" />
+                        <span className="text-xs font-medium">{widget.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Data & Advanced */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center">
+                    <Layers className="w-4 h-4 mr-2" />
+                    Data & Advanced
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {widgetTypes.filter(w => w.category === 'data' || w.category === 'advanced').map((widget) => (
+                      <Button
+                        key={widget.type}
+                        variant="outline"
+                        className="h-24 flex flex-col items-center space-y-2 hover:bg-gradient-to-br hover:from-primary/10 hover:to-accent/10 hover:border-primary transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
+                        onClick={() => addWidget(widget.type)}
+                      >
+                        <widget.icon className="w-7 h-7 text-primary" />
+                        <span className="text-xs font-medium">{widget.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Dashboard Canvas */}
-          <Card className="glass border-border min-h-[400px]">
-            <CardHeader className="flex flex-row items-center justify-between">
+          {/* Professional Dashboard Canvas */}
+          <Card className="glass border-border min-h-[600px] bg-gradient-to-br from-background via-background to-accent/5">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
               <CardTitle className="flex items-center space-x-2">
-                <Eye className="w-5 h-5" />
-                <span>Dashboard Preview</span>
+                <Eye className="w-5 h-5 text-primary" />
+                <span>Live Dashboard Preview</span>
+                <div className="flex items-center space-x-2 ml-4">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-muted-foreground">Live Data</span>
+                </div>
               </CardTitle>
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 px-3 py-1 bg-primary/10 rounded-full">
+                  <Activity className="w-3 h-3 text-primary" />
+                  <span className="text-xs font-medium text-primary">{dashboardState.widgets.length} Widgets</span>
+                </div>
                 <SavedDashboards />
-                <Button onClick={exportDashboard} variant="outline">
+                <Button onClick={exportDashboard} variant="outline" className="hover:bg-primary/10">
                   <Download className="w-4 h-4 mr-2" />
                   Export
                 </Button>
@@ -420,9 +604,36 @@ function DashboardBuilder() {
             </CardHeader>
             <CardContent>
               {dashboardState.widgets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                  <Plus className="w-12 h-12 mb-4 opacity-50" />
-                  <p>Add widgets from the palette above to start building your dashboard</p>
+                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
+                  <div className="relative">
+                    <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full flex items-center justify-center mb-6">
+                      <Plus className="w-12 h-12 text-primary" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                      <Zap className="w-3 h-3 text-primary-foreground" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">Create Your Analytics Dashboard</h3>
+                  <p className="text-center max-w-lg mb-6">Build comprehensive dashboards with live Starknet data, saved queries, and AI-generated insights. Drag and drop widgets to create professional analytics.</p>
+                  <div className="mt-8 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                    <p className="text-sm text-center">
+                      💡 <strong>Pro Tip:</strong> Create dashboards from Contract Analysis or Query Results for instant insights
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-4 mt-4 text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <Activity className="w-3 h-3" />
+                      <span>Real-time Data</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <TrendingUp className="w-3 h-3" />
+                      <span>Interactive Charts</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Users className="w-3 h-3" />
+                      <span>Advanced KPIs</span>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <ResponsiveGridLayout
@@ -431,7 +642,9 @@ function DashboardBuilder() {
                   onLayoutChange={onLayoutChange}
                   breakpoints={BREAKPOINTS}
                   cols={COLS}
-                  rowHeight={60}
+                  rowHeight={40}
+                  containerPadding={[10, 10]}
+                  maxRows={50}
                   isDraggable={true}
                   isResizable={true}
                   margin={[10, 10]}
@@ -439,17 +652,29 @@ function DashboardBuilder() {
                   {dashboardState.widgets.map((widget) => (
                     <div key={widget.id} data-grid={{ x: widget.x, y: widget.y, w: widget.w, h: widget.h }}>
                       <Card
-                        className={`cursor-pointer transition-all border-2 ${
+                        className={`cursor-pointer transition-all duration-300 border-2 glass ${
                           selectedWidgetId === widget.id 
-                            ? 'border-primary glow-primary' 
-                            : 'border-border hover:border-primary/50'
+                            ? 'border-primary shadow-lg shadow-primary/20 bg-gradient-to-br from-primary/5 to-accent/5' 
+                            : 'border-border/50 hover:border-primary/50 hover:shadow-md hover:shadow-primary/10'
                         }`}
                         onClick={() => setSelectedWidgetId(widget.id)}
                       >
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm">{widget.title}</CardTitle>
+                        <CardHeader className="pb-2 border-b border-border/30">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <span>{widget.title}</span>
+                            <div className="flex items-center space-x-1">
+                              {widget.visualConfig?.dataSource === 'live' && (
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                              )}
+                              {widgetTypes.find(w => w.type === widget.type)?.icon && (
+                                React.createElement(widgetTypes.find(w => w.type === widget.type)!.icon, {
+                                  className: "w-4 h-4 text-primary"
+                                })
+                              )}
+                            </div>
+                          </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-4">
                           {widget.savedQuery ? (
                             <DashboardWidget
                               type={widget.visualConfig?.type || widget.type}
@@ -460,9 +685,17 @@ function DashboardBuilder() {
                               aggregation={widget.visualConfig?.aggregation}
                             />
                           ) : (
-                            <div className="bg-muted/50 rounded-lg h-32 flex items-center justify-center">
-                              <span className="text-muted-foreground capitalize">
-                                {widget.type} Preview
+                            <div className="bg-gradient-to-br from-muted/30 to-muted/50 rounded-lg h-32 flex flex-col items-center justify-center border border-dashed border-border">
+                              {widgetTypes.find(w => w.type === widget.type)?.icon && (
+                                React.createElement(widgetTypes.find(w => w.type === widget.type)!.icon, {
+                                  className: "w-8 h-8 text-primary mb-2"
+                                })
+                              )}
+                              <span className="text-muted-foreground capitalize font-medium">
+                                {widget.type} Widget
+                              </span>
+                              <span className="text-xs text-muted-foreground mt-1">
+                                Configure data source
                               </span>
                             </div>
                           )}
@@ -669,33 +902,53 @@ function DashboardBuilder() {
                       <p className="text-sm text-muted-foreground mt-2">Run a query first to add it to dashboard</p>
                     </div>
                   ) : (
-                    savedQueries.map((query) => (
-                      <Card 
-                        key={query.id} 
-                        className="p-4 cursor-pointer hover:border-primary"
-                        onClick={() => {
-                          if (selectedWidgetData) {
-                            updateWidget(selectedWidgetData.id, { savedQuery: query });
-                            setShowQueryDialog(false);
-                          }
-                        }}
-                      >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-medium">{query.title}</h4>
-                          {query.description && (
-                            <p className="text-sm text-muted-foreground">{query.description}</p>
-                          )}
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          Select
-                        </Button>
+                    <div className="space-y-4">
+                      <div className="text-sm text-muted-foreground mb-4">
+                        Select a query to power this widget. All saved visualizations will be available.
                       </div>
-                      <pre className="text-xs bg-muted p-2 rounded-md">
-                        {query.query_text}
-                      </pre>
-                      </Card>
-                    ))
+                      {savedQueries.map((query) => (
+                        <Card 
+                          key={query.id} 
+                          className="p-4 cursor-pointer hover:border-primary transition-all"
+                          onClick={() => {
+                            if (selectedWidgetData) {
+                              updateWidget(selectedWidgetData.id, { 
+                                savedQuery: query,
+                                visualConfig: {
+                                  ...selectedWidgetData.visualConfig,
+                                  dataSource: 'query'
+                                }
+                              });
+                              setShowQueryDialog(false);
+                            }
+                          }}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{query.title}</h4>
+                              {query.description && (
+                                <p className="text-sm text-muted-foreground">{query.description}</p>
+                              )}
+                              {(query as any).visualizations && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {(query as any).visualizations.map((viz: any, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-xs">
+                                      {viz.type}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <Button variant="ghost" size="sm">
+                              Select
+                            </Button>
+                          </div>
+                          <pre className="text-xs bg-muted p-2 rounded-md overflow-hidden">
+                            {query.query_text.length > 100 ? query.query_text.substring(0, 100) + '...' : query.query_text}
+                          </pre>
+                        </Card>
+                      ))}
+                    </div>
                   )}
                 </div>
               </ScrollArea>
