@@ -300,14 +300,6 @@ export default function ContractEventsEDA() {
     return /^0x[0-9a-fA-F]{64}$/.test(cleaned);
   };
 
-  const validateAddress = (addr: string) => {
-    const cleaned = addr.trim();
-    if (!cleaned) return false;
-    if (!cleaned.startsWith('0x')) return false;
-    if (cleaned.length !== 66) return false;
-    return /^0x[0-9a-fA-F]{64}$/.test(cleaned);
-  };
-
   const handleFetch = async () => {
     const cleanAddress = address.trim();
     
