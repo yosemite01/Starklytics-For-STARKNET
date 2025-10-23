@@ -35,7 +35,7 @@ import "react-resizable/css/styles.css";
 const RPC_ENDPOINT = import.meta.env.VITE_STARKNET_RPC_URL || "https://starknet-mainnet.reddio.com/rpc/v0_7";
 
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
-const COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+const COLS = { lg: 24, md: 20, sm: 12, xs: 8, xxs: 4 }; // Much larger grid like Dune
 
 const INITIAL_LAYOUT: Layout = {
   lg: [],
@@ -130,8 +130,9 @@ function DashboardBuilder() {
   });
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
 
-  // Load saved queries and live Starknet data
+  // Load saved queries, live data, and AI-generated dashboards
   useEffect(() => {
+    // Load recent query results
     const queryResults = localStorage.getItem('queryResults');
     const lastQuery = localStorage.getItem('lastQuery');
     if (queryResults && lastQuery) {
@@ -144,6 +145,16 @@ function DashboardBuilder() {
       };
       setSavedQueries([mockQuery]);
     }
+    
+    // Load all saved queries with visualizations
+    const savedQueries = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+    const formattedQueries: SavedQuery[] = savedQueries.map((sq: any) => ({
+      id: sq.id,
+      title: sq.name,
+      query_text: sq.query,
+      results: [{ results: sq.results }],
+      visualizations: sq.visualizations
+    }));
     
     // Add live Starknet data sources
     const liveDataSources: SavedQuery[] = [
@@ -167,8 +178,51 @@ function DashboardBuilder() {
       }
     ];
     
-    setSavedQueries(prev => [...prev, ...liveDataSources]);
+    setSavedQueries(prev => [...prev, ...formattedQueries, ...liveDataSources]);
+    
+    // Load AI-generated dashboard if coming from contract/query
+    const aiDashboard = localStorage.getItem('ai_generated_dashboard');
+    if (aiDashboard) {
+      const config = JSON.parse(aiDashboard);
+      setDashboardName(config.name);
+      setDashboardDescription(config.description);
+      
+      // Convert AI widgets to dashboard state
+      const widgets = config.widgets.map((w: any) => ({
+        id: w.id,
+        type: w.type,
+        title: w.title,
+        x: w.position?.x || 0,
+        y: w.position?.y || 0,
+        w: w.position?.w || 6,
+        h: w.position?.h || 4,
+        data: w.data,
+        visualConfig: { type: w.type, dataSource: 'live' }
+      }));
+      
+      setDashboardState({
+        layouts: generateLayoutsFromWidgets(widgets),
+        widgets
+      });
+      
+      localStorage.removeItem('ai_generated_dashboard');
+    }
   }, []);
+  
+  const generateLayoutsFromWidgets = (widgets: Widget[]) => {
+    const layouts: Layout = { lg: [], md: [], sm: [], xs: [], xxs: [] };
+    
+    widgets.forEach(widget => {
+      const layout = { i: widget.id, x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+      layouts.lg.push(layout);
+      layouts.md.push({...layout, w: Math.min(layout.w, COLS.md)});
+      layouts.sm.push({...layout, w: Math.min(layout.w, COLS.sm)});
+      layouts.xs.push({...layout, w: Math.min(layout.w, COLS.xs)});
+      layouts.xxs.push({...layout, w: Math.min(layout.w, COLS.xxs)});
+    });
+    
+    return layouts;
+  };
   
   const generateMockBlockData = () => {
     return Array.from({ length: 10 }, (_, i) => ({
@@ -448,7 +502,7 @@ function DashboardBuilder() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Grid className="w-5 h-5 text-primary" />
-                <span>Professional Widget Library</span>
+                <span>Widget Library</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -550,7 +604,7 @@ function DashboardBuilder() {
             </CardHeader>
             <CardContent>
               {dashboardState.widgets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
+                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
                   <div className="relative">
                     <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full flex items-center justify-center mb-6">
                       <Plus className="w-12 h-12 text-primary" />
@@ -559,8 +613,13 @@ function DashboardBuilder() {
                       <Zap className="w-3 h-3 text-primary-foreground" />
                     </div>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">Create Your Professional Dashboard</h3>
-                  <p className="text-center max-w-md">Add widgets from the library above to build a comprehensive analytics dashboard with live Starknet data</p>
+                  <h3 className="text-xl font-semibold mb-3">Create Your Analytics Dashboard</h3>
+                  <p className="text-center max-w-lg mb-6">Build comprehensive dashboards with live Starknet data, saved queries, and AI-generated insights. Drag and drop widgets to create professional analytics.</p>
+                  <div className="mt-8 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                    <p className="text-sm text-center">
+                      💡 <strong>Pro Tip:</strong> Create dashboards from Contract Analysis or Query Results for instant insights
+                    </p>
+                  </div>
                   <div className="flex items-center space-x-4 mt-4 text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Activity className="w-3 h-3" />
@@ -572,7 +631,7 @@ function DashboardBuilder() {
                     </div>
                     <div className="flex items-center space-x-1">
                       <Users className="w-3 h-3" />
-                      <span>Professional KPIs</span>
+                      <span>Advanced KPIs</span>
                     </div>
                   </div>
                 </div>
@@ -583,7 +642,9 @@ function DashboardBuilder() {
                   onLayoutChange={onLayoutChange}
                   breakpoints={BREAKPOINTS}
                   cols={COLS}
-                  rowHeight={60}
+                  rowHeight={40}
+                  containerPadding={[10, 10]}
+                  maxRows={50}
                   isDraggable={true}
                   isResizable={true}
                   margin={[10, 10]}
@@ -841,33 +902,53 @@ function DashboardBuilder() {
                       <p className="text-sm text-muted-foreground mt-2">Run a query first to add it to dashboard</p>
                     </div>
                   ) : (
-                    savedQueries.map((query) => (
-                      <Card 
-                        key={query.id} 
-                        className="p-4 cursor-pointer hover:border-primary"
-                        onClick={() => {
-                          if (selectedWidgetData) {
-                            updateWidget(selectedWidgetData.id, { savedQuery: query });
-                            setShowQueryDialog(false);
-                          }
-                        }}
-                      >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-medium">{query.title}</h4>
-                          {query.description && (
-                            <p className="text-sm text-muted-foreground">{query.description}</p>
-                          )}
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          Select
-                        </Button>
+                    <div className="space-y-4">
+                      <div className="text-sm text-muted-foreground mb-4">
+                        Select a query to power this widget. All saved visualizations will be available.
                       </div>
-                      <pre className="text-xs bg-muted p-2 rounded-md">
-                        {query.query_text}
-                      </pre>
-                      </Card>
-                    ))
+                      {savedQueries.map((query) => (
+                        <Card 
+                          key={query.id} 
+                          className="p-4 cursor-pointer hover:border-primary transition-all"
+                          onClick={() => {
+                            if (selectedWidgetData) {
+                              updateWidget(selectedWidgetData.id, { 
+                                savedQuery: query,
+                                visualConfig: {
+                                  ...selectedWidgetData.visualConfig,
+                                  dataSource: 'query'
+                                }
+                              });
+                              setShowQueryDialog(false);
+                            }
+                          }}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{query.title}</h4>
+                              {query.description && (
+                                <p className="text-sm text-muted-foreground">{query.description}</p>
+                              )}
+                              {(query as any).visualizations && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {(query as any).visualizations.map((viz: any, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-xs">
+                                      {viz.type}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <Button variant="ghost" size="sm">
+                              Select
+                            </Button>
+                          </div>
+                          <pre className="text-xs bg-muted p-2 rounded-md overflow-hidden">
+                            {query.query_text.length > 100 ? query.query_text.substring(0, 100) + '...' : query.query_text}
+                          </pre>
+                        </Card>
+                      ))}
+                    </div>
                   )}
                 </div>
               </ScrollArea>

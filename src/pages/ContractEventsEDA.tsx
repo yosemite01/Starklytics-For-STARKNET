@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, BarChart3, PieChart, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 
 const RPC_ENDPOINTS = [
@@ -498,6 +499,74 @@ export default function ContractEventsEDA() {
     URL.revokeObjectURL(url);
   };
 
+  const createDashboardFromContract = () => {
+    if (!events.length || !stats || !contractInfo) return;
+    
+    // Create AI-generated dashboard based on contract type and data
+    const dashboardConfig = {
+      id: `contract-dashboard-${Date.now()}`,
+      name: `${contractInfo.contractName} Analytics Dashboard`,
+      description: `Auto-generated dashboard for ${contractInfo.contractType} analysis`,
+      contractAddress: address,
+      contractType: contractInfo.contractType,
+      widgets: generateWidgetsForContract(contractInfo.contractType, stats, events),
+      createdAt: new Date().toISOString()
+    };
+    
+    // Save dashboard config
+    localStorage.setItem('ai_generated_dashboard', JSON.stringify(dashboardConfig));
+    
+    // Navigate to dashboard builder with pre-configured widgets
+    window.location.href = `/dashboard/builder?contract=${address}&type=${contractInfo.contractType}`;
+  };
+  
+  const generateWidgetsForContract = (contractType: string, stats: any, events: any[]) => {
+    const baseWidgets = [
+      {
+        id: 'total-events-kpi',
+        type: 'kpi',
+        title: 'Total Events',
+        data: [{ value: stats.totalEvents }],
+        position: { x: 0, y: 0, w: 3, h: 3 }
+      },
+      {
+        id: 'unique-users-kpi', 
+        type: 'kpi',
+        title: 'Unique Users',
+        data: [{ value: stats.uniqueUsers }],
+        position: { x: 3, y: 0, w: 3, h: 3 }
+      },
+      {
+        id: 'events-timeline',
+        type: 'line',
+        title: 'Events Over Time',
+        data: events.slice(0, 20).map(e => ({ name: e.block_number, value: 1 })),
+        position: { x: 6, y: 0, w: 6, h: 4 }
+      }
+    ];
+    
+    // Add contract-specific widgets based on type
+    if (contractType === 'ERC20 Token') {
+      baseWidgets.push({
+        id: 'transfer-volume',
+        type: 'gauge',
+        title: 'Transfer Activity',
+        data: [{ value: stats.transferCount || 0 }],
+        position: { x: 0, y: 4, w: 4, h: 4 }
+      });
+    } else if (contractType === 'DEX/AMM') {
+      baseWidgets.push({
+        id: 'swap-activity',
+        type: 'bar',
+        title: 'Swap Activity',
+        data: events.filter(e => e.event_name === 'Swap').slice(0, 10),
+        position: { x: 4, y: 4, w: 8, h: 4 }
+      });
+    }
+    
+    return baseWidgets;
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
@@ -708,6 +777,10 @@ export default function ContractEventsEDA() {
                     <Button onClick={exportToJSON} variant="outline" size="sm">
                       <Download className="h-4 w-4 mr-2" />
                       Export JSON
+                    </Button>
+                    <Button onClick={createDashboardFromContract} className="bg-gradient-to-r from-primary to-accent" size="sm">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Make Dashboard
                     </Button>
                   </div>
                 </CardHeader>

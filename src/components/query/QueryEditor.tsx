@@ -144,6 +144,83 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
       navigate('/charts');
     }
   };
+  
+  const createDashboardFromQuery = () => {
+    if (!results.length) return;
+    
+    const queryName = prompt(`Enter dashboard name:`, `Dashboard from Query`);
+    if (!queryName) return;
+    
+    // Create dashboard with auto-generated widgets from query results
+    const dashboardConfig = {
+      id: `query-dashboard-${Date.now()}`,
+      name: queryName,
+      description: `Auto-generated dashboard from query results`,
+      source: 'query',
+      query: query,
+      widgets: generateDashboardWidgets(results),
+      createdAt: new Date().toISOString()
+    };
+    
+    localStorage.setItem('ai_generated_dashboard', JSON.stringify(dashboardConfig));
+    navigate(`/dashboard/builder?source=query&id=${dashboardConfig.id}`);
+  };
+  
+  const generateDashboardWidgets = (data: any[]) => {
+    if (!data.length) return [];
+    
+    const widgets = [];
+    const columns = Object.keys(data[0]);
+    const numericColumns = columns.filter(col => 
+      data.every(row => !isNaN(Number(row[col])) && row[col] !== '')
+    );
+    const textColumns = columns.filter(col => !numericColumns.includes(col));
+    
+    // KPI widgets for numeric values
+    numericColumns.slice(0, 3).forEach((col, index) => {
+      const total = data.reduce((sum, row) => sum + Number(row[col]), 0);
+      widgets.push({
+        id: `kpi-${col}`,
+        type: 'kpi',
+        title: col.replace(/_/g, ' ').toUpperCase(),
+        data: [{ value: total }],
+        position: { x: index * 3, y: 0, w: 3, h: 3 }
+      });
+    });
+    
+    // Chart widgets
+    if (numericColumns.length > 0 && textColumns.length > 0) {
+      widgets.push({
+        id: 'main-chart',
+        type: 'bar',
+        title: `${textColumns[0]} Analysis`,
+        data: data.slice(0, 10),
+        position: { x: 0, y: 4, w: 8, h: 5 }
+      });
+      
+      widgets.push({
+        id: 'pie-chart',
+        type: 'pie', 
+        title: 'Distribution',
+        data: data.slice(0, 5).map(row => ({ 
+          name: row[textColumns[0]], 
+          value: Number(row[numericColumns[0]]) 
+        })),
+        position: { x: 8, y: 4, w: 4, h: 5 }
+      });
+    }
+    
+    // Data table
+    widgets.push({
+      id: 'data-table',
+      type: 'table',
+      title: 'Query Results',
+      data: data,
+      position: { x: 0, y: 9, w: 12, h: 6 }
+    });
+    
+    return widgets;
+  };
 
   // Auto-save query when enabled
   useEffect(() => {
@@ -156,11 +233,83 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
   }, [query, isAutosaveEnabled, saveQueryToCollection]);
 
   const saveQuery = () => {
-    saveQueryToCollection(query);
+    const queryName = prompt(`Enter a name for this query:`, `Query ${Date.now()}`);
+    if (!queryName) return;
+    
+    // Save query with results and visualization config
+    const savedQuery = {
+      id: `query-${Date.now()}`,
+      name: queryName,
+      query: query,
+      results: results,
+      visualizations: generateVisualizationsFromResults(results),
+      createdAt: new Date().toISOString()
+    };
+    
+    // Save to localStorage
+    const existingQueries = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+    existingQueries.push(savedQuery);
+    localStorage.setItem('saved_queries', JSON.stringify(existingQueries));
+    
     toast({
-      title: "Query saved",
-      description: "Query has been saved to your collection",
+      title: "Query saved with visualizations",
+      description: `"${queryName}" saved with ${savedQuery.visualizations.length} auto-generated charts`,
     });
+  };
+  
+  const generateVisualizationsFromResults = (data: any[]) => {
+    if (!data.length) return [];
+    
+    const visualizations = [];
+    const columns = Object.keys(data[0]);
+    const numericColumns = columns.filter(col => 
+      data.every(row => !isNaN(Number(row[col])) && row[col] !== '')
+    );
+    const textColumns = columns.filter(col => !numericColumns.includes(col));
+    
+    // Auto-generate different chart types
+    if (numericColumns.length > 0 && textColumns.length > 0) {
+      // Bar chart
+      visualizations.push({
+        type: 'bar',
+        title: `${textColumns[0]} vs ${numericColumns[0]}`,
+        xAxis: textColumns[0],
+        yAxis: numericColumns[0],
+        data: data.slice(0, 10)
+      });
+      
+      // Pie chart if suitable
+      if (data.length <= 10) {
+        visualizations.push({
+          type: 'pie',
+          title: `Distribution of ${numericColumns[0]}`,
+          data: data.map(row => ({ name: row[textColumns[0]], value: Number(row[numericColumns[0]]) }))
+        });
+      }
+    }
+    
+    // Line chart for time series
+    if (columns.some(col => col.toLowerCase().includes('date') || col.toLowerCase().includes('time'))) {
+      const timeCol = columns.find(col => col.toLowerCase().includes('date') || col.toLowerCase().includes('time'));
+      if (timeCol && numericColumns.length > 0) {
+        visualizations.push({
+          type: 'line',
+          title: `${numericColumns[0]} Over Time`,
+          xAxis: timeCol,
+          yAxis: numericColumns[0],
+          data: data
+        });
+      }
+    }
+    
+    // Table view
+    visualizations.push({
+      type: 'table',
+      title: 'Data Table',
+      data: data
+    });
+    
+    return visualizations;
   };
 
   return (
@@ -203,6 +352,10 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
                 <Button onClick={visualizeResults} disabled={!results.length} variant="outline">
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Visualize
+                </Button>
+                <Button onClick={() => createDashboardFromQuery()} disabled={!results.length} className="bg-gradient-to-r from-primary to-accent">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Make Dashboard
                 </Button>
                 <Button variant="outline" disabled={!results.length}>
                   <Download className="w-4 h-4 mr-2" />
@@ -260,10 +413,16 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
         <Card className="glass">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Query Results ({results.length} rows)</CardTitle>
-            <Button onClick={visualizeResults} size="sm" variant="outline">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Create Visualization
-            </Button>
+            <div className="flex space-x-2">
+              <Button onClick={visualizeResults} size="sm" variant="outline">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Create Visualization
+              </Button>
+              <Button onClick={createDashboardFromQuery} size="sm" className="bg-gradient-to-r from-primary to-accent">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Make Dashboard
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
