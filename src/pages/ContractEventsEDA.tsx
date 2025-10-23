@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, BarChart3, PieChart, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 
 const RPC_ENDPOINTS = [
@@ -97,6 +98,126 @@ async function estimateBlockFromTwoWeeksAgo() {
   return result;
 }
 
+async function getComprehensiveContractData(contractAddress: string, provider: any) {
+  try {
+    const latest = await provider.getBlockNumber();
+    const fromBlock = Math.max(0, latest - 50000);
+    
+    // Get all transactions involving this contract
+    const allTransactions = [];
+    const allUsers = new Set();
+    const allCalls = [];
+    
+    // Fetch blocks and analyze transactions
+    for (let blockNum = latest; blockNum > fromBlock && allTransactions.length < 1000; blockNum -= 100) {
+      try {
+        const block = await provider.getBlockWithTxs(blockNum);
+        
+        for (const tx of block.transactions) {
+          // Check if transaction involves our contract
+          if (tx.contract_address === contractAddress || 
+              tx.sender_address === contractAddress ||
+              (tx.calldata && tx.calldata.includes(contractAddress))) {
+            
+            allTransactions.push({
+              hash: tx.transaction_hash,
+              block: blockNum,
+              from: tx.sender_address,
+              to: tx.contract_address,
+              type: tx.type,
+              status: 'success', // Assume success if in block
+              timestamp: block.timestamp
+            });
+            
+            // Track users
+            if (tx.sender_address) allUsers.add(tx.sender_address);
+            if (tx.contract_address) allUsers.add(tx.contract_address);
+            
+            // Track contract calls
+            if (tx.calldata && tx.calldata.length > 0) {
+              allCalls.push({
+                hash: tx.transaction_hash,
+                block: blockNum,
+                function: tx.entry_point_selector || 'unknown',
+                calldata: tx.calldata.slice(0, 5) // First 5 params
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Block fetch failed:', blockNum);
+      }
+    }
+    
+    return {
+      transactions: allTransactions,
+      users: Array.from(allUsers),
+      calls: allCalls,
+      blockRange: { from: fromBlock, to: latest }
+    };
+  } catch (error) {
+    console.error('Comprehensive data fetch failed:', error);
+    return {
+      transactions: [],
+      users: [],
+      calls: [],
+      blockRange: { from: 0, to: 0 }
+    };
+  }
+}
+
+async function getContractInfo(contractAddress: string, provider: any) {
+  try {
+    // Try to get contract class to determine type
+    const classHash = await provider.getClassHashAt(contractAddress);
+    const contractClass = await provider.getClass(classHash);
+    
+    // Analyze contract based on ABI/interface
+    let contractType = 'Unknown Contract';
+    let contractName = 'Unknown';
+    
+    if (contractClass.abi) {
+      const functions = contractClass.abi.filter((item: any) => item.type === 'function').map((f: any) => f.name);
+      const events = contractClass.abi.filter((item: any) => item.type === 'event').map((e: any) => e.name);
+      
+      // Detect contract type based on functions/events
+      if (functions.includes('transfer') && functions.includes('balanceOf')) {
+        contractType = 'ERC20 Token';
+        // Try to get token name
+        try {
+          const nameResult = await provider.callContract({
+            contractAddress,
+            entrypoint: 'name',
+            calldata: []
+          });
+          if (nameResult.result && nameResult.result.length > 0) {
+            contractName = nameResult.result[0];
+          }
+        } catch (e) {
+          contractName = 'ERC20 Token';
+        }
+      } else if (functions.includes('transferFrom') && functions.includes('tokenURI')) {
+        contractType = 'ERC721 NFT';
+        contractName = 'NFT Collection';
+      } else if (functions.includes('swap') || functions.includes('addLiquidity')) {
+        contractType = 'DEX/AMM';
+        contractName = 'DEX Contract';
+      } else if (functions.includes('deposit') && functions.includes('withdraw')) {
+        contractType = 'DeFi Protocol';
+        contractName = 'DeFi Contract';
+      } else if (events.includes('Transfer') && events.includes('Approval')) {
+        contractType = 'Token Contract';
+        contractName = 'Token';
+      }
+    }
+    
+    return { contractType, contractName, classHash };
+  } catch (error) {
+    console.log('Could not fetch contract info:', error);
+    return { contractType: 'Smart Contract', contractName: 'Contract', classHash: null };
+  }
+}
+
 async function fetchEvents(contractAddress: string) {
   const { RpcProvider } = await import('starknet');
   
@@ -104,6 +225,10 @@ async function fetchEvents(contractAddress: string) {
     try {
       console.log('Trying RPC:', getRpcUrl());
       const provider = new RpcProvider({ nodeUrl: getRpcUrl() });
+      
+      // Get contract info and comprehensive data
+      const contractInfo = await getContractInfo(contractAddress, provider);
+      const comprehensiveData = await getComprehensiveContractData(contractAddress, provider);
       
       const latest = await provider.getBlockNumber();
       const fromBlock = Math.max(0, latest - 50000);
@@ -188,7 +313,7 @@ async function fetchEvents(contractAddress: string) {
         };
       });
       
-      return decodedEvents;
+      return { events: decodedEvents, contractInfo, comprehensiveData };
     } catch (error) {
       console.error('RPC failed:', getRpcUrl(), error);
       switchToNextRpc();
@@ -206,6 +331,8 @@ export default function ContractEventsEDA() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [stats, setStats] = useState<any>(null);
+  const [contractInfo, setContractInfo] = useState<any>(null);
+  const [comprehensiveData, setComprehensiveData] = useState<any>(null);
 
   const validateAddress = (addr: string) => {
     const cleaned = addr.trim();
@@ -242,13 +369,17 @@ export default function ContractEventsEDA() {
     
     try {
       console.log('Fetching events for contract:', cleanAddress);
-      const evs = await fetchEvents(cleanAddress);
-      console.log('Events found:', evs.length);
+      const result = await fetchEvents(cleanAddress);
+      console.log('Events found:', result.events.length);
+      console.log('Contract info:', result.contractInfo);
       
-      setEvents(evs);
+      setEvents(result.events);
+      setContractInfo(result.contractInfo);
+      setComprehensiveData(result.comprehensiveData);
       
-      // Calculate stats like Dune
-      if (evs.length > 0) {
+      // Calculate comprehensive EDA stats
+      if (result.events.length > 0) {
+        const evs = result.events;
         const eventTypes = evs.reduce((acc: any, ev) => {
           const type = ev.event_name || 'Unknown';
           acc[type] = (acc[type] || 0) + 1;
@@ -257,22 +388,73 @@ export default function ContractEventsEDA() {
         
         const blocks = [...new Set(evs.map(ev => ev.block_number))];
         const transactions = [...new Set(evs.map(ev => ev.transaction_hash))];
+        const users = [...new Set(evs.flatMap(ev => [
+          ev.decoded_data?.from,
+          ev.decoded_data?.to,
+          ev.decoded_data?.user,
+          ev.decoded_data?.owner
+        ]).filter(Boolean))];
+        
+        // Calculate activity patterns
+        const blockActivity = blocks.length;
+        const avgEventsPerBlock = evs.length / blockActivity;
+        const avgEventsPerTx = evs.length / transactions.length;
+        
+        // Calculate value flows (for Transfer events)
+        const transferEvents = evs.filter(ev => ev.event_name === 'Transfer');
+        const totalVolume = transferEvents.reduce((sum, ev) => {
+          const amount = ev.decoded_data?.amount ? parseInt(ev.decoded_data.amount) : 0;
+          return sum + amount;
+        }, 0);
+        
+        // Combine event data with comprehensive transaction data
+        const allTxs = result.comprehensiveData.transactions;
+        const allUsers = result.comprehensiveData.users;
+        const allCalls = result.comprehensiveData.calls;
         
         setStats({
+          // Basic metrics
           totalEvents: evs.length,
+          totalTransactions: allTxs.length,
+          totalCalls: allCalls.length,
           uniqueBlocks: blocks.length,
-          uniqueTransactions: transactions.length,
-          eventTypes,
+          uniqueUsers: allUsers.length,
+          
+          // Activity patterns
+          avgEventsPerBlock: avgEventsPerBlock.toFixed(2),
+          avgEventsPerTx: avgEventsPerTx.toFixed(2),
+          avgTxPerBlock: (allTxs.length / blocks.length).toFixed(2),
+          
+          // Value metrics
+          totalVolume: (totalVolume / 1e18).toFixed(6),
+          transferCount: transferEvents.length,
+          
+          // Time range
           dateRange: {
             from: Math.min(...blocks),
-            to: Math.max(...blocks)
-          }
+            to: Math.max(...blocks),
+            span: Math.max(...blocks) - Math.min(...blocks)
+          },
+          
+          // Event distribution
+          eventTypes,
+          
+          // Contract health indicators
+          isActive: blocks.length > 10,
+          hasTransfers: transferEvents.length > 0,
+          hasApprovals: evs.some(ev => ev.event_name === 'Approval'),
+          
+          // Comprehensive data
+          transactions: allTxs,
+          users: allUsers,
+          calls: allCalls
         });
         
-        setError(`✓ Successfully fetched ${evs.length} events from contract`);
+        setError(`✓ Successfully fetched ${evs.length} events from ${result.contractInfo.contractType}`);
       } else {
         setStats(null);
-        setError(`✓ Contract address is valid, but no events found in the last 50,000 blocks.`);
+        setContractInfo(result.contractInfo);
+        setError(`✓ Contract address is valid (${result.contractInfo.contractType}), but no events found in the last 50,000 blocks.`);
       }
     } catch (e: any) {
       console.error('Fetch error:', e);
@@ -325,6 +507,74 @@ export default function ContractEventsEDA() {
     URL.revokeObjectURL(url);
   };
 
+  const createDashboardFromContract = () => {
+    if (!events.length || !stats || !contractInfo) return;
+    
+    // Create AI-generated dashboard based on contract type and data
+    const dashboardConfig = {
+      id: `contract-dashboard-${Date.now()}`,
+      name: `${contractInfo.contractName} Analytics Dashboard`,
+      description: `Auto-generated dashboard for ${contractInfo.contractType} analysis`,
+      contractAddress: address,
+      contractType: contractInfo.contractType,
+      widgets: generateWidgetsForContract(contractInfo.contractType, stats, events),
+      createdAt: new Date().toISOString()
+    };
+    
+    // Save dashboard config
+    localStorage.setItem('ai_generated_dashboard', JSON.stringify(dashboardConfig));
+    
+    // Navigate to dashboard builder with pre-configured widgets
+    window.location.href = `/dashboard/builder?contract=${address}&type=${contractInfo.contractType}`;
+  };
+  
+  const generateWidgetsForContract = (contractType: string, stats: any, events: any[]) => {
+    const baseWidgets = [
+      {
+        id: 'total-events-kpi',
+        type: 'kpi',
+        title: 'Total Events',
+        data: [{ value: stats.totalEvents }],
+        position: { x: 0, y: 0, w: 3, h: 3 }
+      },
+      {
+        id: 'unique-users-kpi', 
+        type: 'kpi',
+        title: 'Unique Users',
+        data: [{ value: stats.uniqueUsers }],
+        position: { x: 3, y: 0, w: 3, h: 3 }
+      },
+      {
+        id: 'events-timeline',
+        type: 'line',
+        title: 'Events Over Time',
+        data: events.slice(0, 20).map(e => ({ name: e.block_number, value: 1 })),
+        position: { x: 6, y: 0, w: 6, h: 4 }
+      }
+    ];
+    
+    // Add contract-specific widgets based on type
+    if (contractType === 'ERC20 Token') {
+      baseWidgets.push({
+        id: 'transfer-volume',
+        type: 'gauge',
+        title: 'Transfer Activity',
+        data: [{ value: stats.transferCount || 0 }],
+        position: { x: 0, y: 4, w: 4, h: 4 }
+      });
+    } else if (contractType === 'DEX/AMM') {
+      baseWidgets.push({
+        id: 'swap-activity',
+        type: 'bar',
+        title: 'Swap Activity',
+        data: events.filter(e => e.event_name === 'Swap').slice(0, 10),
+        position: { x: 4, y: 4, w: 8, h: 4 }
+      });
+    }
+    
+    return baseWidgets;
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
@@ -334,6 +584,14 @@ export default function ContractEventsEDA() {
             <Card className="glass max-w-xl mx-auto">
               <CardHeader>
                 <CardTitle>Enter Mainnet Contract Address</CardTitle>
+                {contractInfo && (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Badge variant="outline" className="px-3 py-1">
+                      {contractInfo.contractType}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">{contractInfo.contractName}</span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -399,70 +657,126 @@ export default function ContractEventsEDA() {
               </CardContent>
             </Card>
             
-            {/* Stats Overview - Dune Style */}
-            {stats && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-6xl mx-auto">
-                <Card className="glass">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Total Events</span>
-                    </div>
-                    <p className="text-2xl font-bold">{stats.totalEvents}</p>
-                  </CardContent>
-                </Card>
-                <Card className="glass">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Unique Blocks</span>
-                    </div>
-                    <p className="text-2xl font-bold">{stats.uniqueBlocks}</p>
-                  </CardContent>
-                </Card>
-                <Card className="glass">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <PieChart className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Transactions</span>
-                    </div>
-                    <p className="text-2xl font-bold">{stats.uniqueTransactions}</p>
-                  </CardContent>
-                </Card>
-                <Card className="glass">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Block Range</span>
-                    </div>
-                    <p className="text-sm font-mono">{stats.dateRange.from} - {stats.dateRange.to}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-            
-            {/* Event Types Distribution */}
+            {/* 1. BASIC WEB3 CONTRACT EDA - Universal Metrics */}
             {stats && (
               <Card className="glass max-w-6xl mx-auto">
                 <CardHeader>
-                  <CardTitle>Event Types Distribution</CardTitle>
+                  <CardTitle className="flex items-center space-x-2">
+                    <BarChart3 className="h-5 w-5" />
+                    <span>Basic Web3 Contract Analysis</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(stats.eventTypes).map(([type, count]: [string, any]) => (
-                      <Badge key={type} variant="secondary" className="px-3 py-1">
-                        {type}: {count}
-                      </Badge>
-                    ))}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+                    {/* Comprehensive Activity Metrics */}
+                    <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <p className="text-xl font-bold text-blue-600">{stats.totalEvents}</p>
+                      <p className="text-xs text-muted-foreground">Events</p>
+                    </div>
+                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <p className="text-xl font-bold text-green-600">{stats.totalTransactions}</p>
+                      <p className="text-xs text-muted-foreground">Transactions</p>
+                    </div>
+                    <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                      <p className="text-xl font-bold text-purple-600">{stats.totalCalls}</p>
+                      <p className="text-xs text-muted-foreground">Contract Calls</p>
+                    </div>
+                    <div className="text-center p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                      <p className="text-xl font-bold text-orange-600">{stats.uniqueUsers}</p>
+                      <p className="text-xs text-muted-foreground">Unique Users</p>
+                    </div>
+                    <div className="text-center p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                      <p className="text-xl font-bold text-cyan-600">{stats.avgEventsPerBlock}</p>
+                      <p className="text-xs text-muted-foreground">Events/Block</p>
+                    </div>
+                    <div className="text-center p-3 bg-pink-500/10 rounded-lg border border-pink-500/20">
+                      <p className="text-xl font-bold text-pink-600">{stats.avgTxPerBlock}</p>
+                      <p className="text-xs text-muted-foreground">TX/Block</p>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                      <p className="text-xl font-bold text-yellow-600">{stats.dateRange.span}</p>
+                      <p className="text-xs text-muted-foreground">Block Span</p>
+                    </div>
+                    <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                      <p className="text-xl font-bold text-red-600">{stats.totalVolume}</p>
+                      <p className="text-xs text-muted-foreground">Volume</p>
+                    </div>
+                  </div>
+                  
+                  {/* Contract Health Indicators */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-semibold mb-2">Contract Activity</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span>Status:</span>
+                          <Badge variant={stats.isActive ? 'default' : 'secondary'}>
+                            {stats.isActive ? 'Active' : 'Low Activity'}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Has Transfers:</span>
+                          <Badge variant={stats.hasTransfers ? 'default' : 'outline'}>
+                            {stats.hasTransfers ? 'Yes' : 'No'}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Has Approvals:</span>
+                          <Badge variant={stats.hasApprovals ? 'default' : 'outline'}>
+                            {stats.hasApprovals ? 'Yes' : 'No'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-semibold mb-2">Usage Patterns</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>Total TX:</span>
+                          <span className="font-mono">{stats.totalTransactions}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Contract Calls:</span>
+                          <span className="font-mono">{stats.totalCalls}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Avg TX/Block:</span>
+                          <span className="font-mono">{stats.avgTxPerBlock}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Active Users:</span>
+                          <span className="font-mono">{stats.uniqueUsers}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-semibold mb-2">Event Distribution</h4>
+                      <div className="space-y-1">
+                        {Object.entries(stats.eventTypes).slice(0, 4).map(([type, count]: [string, any]) => (
+                          <div key={type} className="flex justify-between text-sm">
+                            <span>{type}:</span>
+                            <span className="font-mono">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             )}
             
+
+            
+            {/* 2. DETAILED EVENTS TABLE */}
             {events.length > 0 && (
               <Card className="glass max-w-6xl mx-auto">
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Contract Events ({events.length} found)</CardTitle>
+                  <CardTitle className="flex items-center space-x-2">
+                    <PieChart className="h-5 w-5" />
+                    <span>Detailed Event Analysis ({events.length} events)</span>
+                  </CardTitle>
                   <div className="flex space-x-2">
                     <Button onClick={exportToCSV} variant="outline" size="sm">
                       <Download className="h-4 w-4 mr-2" />
@@ -471,6 +785,10 @@ export default function ContractEventsEDA() {
                     <Button onClick={exportToJSON} variant="outline" size="sm">
                       <Download className="h-4 w-4 mr-2" />
                       Export JSON
+                    </Button>
+                    <Button onClick={createDashboardFromContract} className="bg-gradient-to-r from-primary to-accent" size="sm">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Make Dashboard
                     </Button>
                   </div>
                 </CardHeader>
