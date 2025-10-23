@@ -91,3 +91,182 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         localStorage.removeItem('auth_token');
       }
       setLoading(false);
+    };
+    initAuth();
+  }, []);
+
+  const signUp = async (
+    email: string,
+    password: string,
+    userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }
+  ) => {
+    try {
+      setLoading(true);
+      if (isDemoAuth) {
+        const demoUser: User = {
+          _id: `demo_${Date.now()}`,
+          email,
+          firstName: userData?.firstName || 'Demo',
+          lastName: userData?.lastName || 'User',
+          role: userData?.role || 'analyst',
+          isActive: true,
+          lastLogin: new Date()
+        };
+        localStorage.setItem('demo_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', `demo_token_${Date.now()}`);
+        setUser(demoUser);
+        setProfile({
+          ...demoUser,
+          fullName: `${demoUser.firstName} ${demoUser.lastName}`.trim()
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.post('/api/auth/signup', {
+          email,
+          password,
+          ...userData
+        });
+        if (response?.data?.token) {
+          localStorage.setItem('auth_token', response.data.token);
+          await fetchProfile();
+        }
+        return { error: null };
+      }
+    } catch (error: any) {
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      if (isDemoAuth) {
+        const demoUser: User = {
+          _id: 'demo_user_123',
+          email,
+          firstName: 'Demo',
+          lastName: 'User',
+          role: 'analyst',
+          isActive: true,
+          lastLogin: new Date()
+        };
+        localStorage.setItem('demo_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', 'demo_token_123');
+        setUser(demoUser);
+        setProfile({
+          ...demoUser,
+          fullName: 'Demo User'
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.post('/api/auth/signin', { email, password });
+        if (response?.data?.token) {
+          localStorage.setItem('auth_token', response.data.token);
+          await fetchProfile();
+        }
+        return { error: null };
+      }
+    } catch (error: any) {
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInWithGoogle = async (token: string, role?: 'analyst' | 'creator') => {
+    try {
+      setLoading(true);
+      if (isDemoAuth) {
+        const demoUser: User = {
+          _id: 'demo_google_user',
+          email: 'demo@google.com',
+          firstName: 'Google',
+          lastName: 'User',
+          role: role || 'analyst',
+          isActive: true,
+          lastLogin: new Date()
+        };
+        localStorage.setItem('demo_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', 'demo_google_token');
+        setUser(demoUser);
+        setProfile({
+          ...demoUser,
+          fullName: 'Google User'
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.post('/api/auth/google', { token, role });
+        if (response?.data?.token) {
+          localStorage.setItem('auth_token', response.data.token);
+          await fetchProfile();
+        }
+        return { error: null };
+      }
+    } catch (error: any) {
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      setLoading(true);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('demo_user');
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async (updates: Partial<Profile>) => {
+    try {
+      setLoading(true);
+      if (isDemoAuth) {
+        const currentUser = JSON.parse(localStorage.getItem('demo_user') || '{}');
+        const updatedUser = { ...currentUser, ...updates };
+        localStorage.setItem('demo_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        setProfile({
+          ...updatedUser,
+          fullName: `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim()
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.put('/api/profile', updates);
+        if (response?.data) {
+          const userData = response.data as User;
+          setUser(userData);
+          setProfile({
+            ...userData,
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim()
+          });
+        }
+        return { error: null };
+      }
+    } catch (error: any) {
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    profile,
+    loading,
+    signUp,
+    signIn,
+    signInWithGoogle,
+    signOut,
+    updateProfile,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
