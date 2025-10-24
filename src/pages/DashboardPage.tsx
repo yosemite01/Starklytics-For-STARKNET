@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 
 interface DashboardBlock {
   id: string;
-  type: 'query' | 'markdown';
+  type: 'visual' | 'markdown';
   content: any;
   order: number;
 }
@@ -54,8 +54,13 @@ export default function DashboardPage() {
   }, [dashboardId]);
 
   const handleSave = () => {
-    if (dashboard) {
-      localStorage.setItem(`dashboard_${dashboard.id}`, JSON.stringify(dashboard));
+    try {
+      if (dashboard) {
+        localStorage.setItem(`dashboard_${dashboard.id}`, JSON.stringify(dashboard));
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error('Failed to save dashboard:', error);
       setIsEditing(false);
     }
   };
@@ -128,12 +133,11 @@ export default function DashboardPage() {
                         <CardTitle>{block.content.title}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="bg-muted p-4 rounded-lg">
-                          <pre className="text-sm text-muted-foreground mb-4">
-                            {block.content.sql}
-                          </pre>
-                          <div className="h-64 flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded">
-                            <p className="text-muted-foreground">Query visualization would appear here</p>
+                        <div className="h-64 flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+                          <div className="text-center">
+                            <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">{block.content.visualType?.toUpperCase()} Chart</p>
+                            <p className="text-xs text-muted-foreground mt-1">Interactive visualization</p>
                           </div>
                         </div>
                       </CardContent>
