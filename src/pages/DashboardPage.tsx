@@ -309,7 +309,7 @@ export default function DashboardPage() {
   const isEmpty = !dashboard.widgets || dashboard.widgets.length === 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <DashboardHeader
         dashboard={dashboard}
         isEditing={isEditing}
@@ -466,6 +466,6 @@ export default function DashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

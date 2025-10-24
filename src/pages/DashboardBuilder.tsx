@@ -62,15 +62,13 @@ export default function DashboardBuilder() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <AuthenticatedSidebar />
-      <div className="lg:ml-64">
-        <Header 
-          title="Dashboards" 
-          subtitle="Create, manage, and share your analytics dashboards"
-        />
-        
-        <main className="p-6">
+    <>
+      <Header 
+        title="Dashboards" 
+        subtitle="Create, manage, and share your analytics dashboards"
+      />
+      
+      <main className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">My Dashboards</h2>
             <Button onClick={() => setShowCreateModal(true)}>
@@ -148,13 +146,12 @@ export default function DashboardBuilder() {
               ))}
             </div>
           )}
-        </main>
-      </div>
+      </main>
       
       <CreateDashboardModal
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
       />
-    </div>
+    </>
   );
 }

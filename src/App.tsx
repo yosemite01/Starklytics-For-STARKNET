@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 // Core pages (immediately loaded)
 import Index from "./pages/Index";
@@ -47,12 +48,13 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              </div>
-            }>
-              <Routes>
+            <AppLayout>
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                </div>
+              }>
+                <Routes>
                 {/* Public routes */}
                 <Route path="/auth" element={
                   <ProtectedRoute requireAuth={false}>
@@ -159,10 +161,11 @@ const App = () => (
               </ProtectedRoute>
             } />
             
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-            </Suspense>
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </AppLayout>
           </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
