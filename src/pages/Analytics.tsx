@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AuthenticatedSidebar } from '@/components/layout/AuthenticatedSidebar';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,15 +40,12 @@ export default function Analytics() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AuthenticatedSidebar />
+      <Header 
+        title="Analytics Workspace" 
+        subtitle="Query, visualize, and build dashboards in one place"
+      />
       
-      <div className="lg:ml-64 flex flex-col min-h-screen">
-        <Header 
-          title="Analytics Workspace" 
-          subtitle="Query, visualize, and build dashboards in one place"
-        />
-        
-        <main className="flex-1 p-6">
+      <main className="flex-1 p-6">
           <div className="grid grid-cols-12 gap-6 h-full">
             
             {/* Main Content */}
@@ -187,8 +183,7 @@ export default function Analytics() {
               </Card>
             </div>
           </div>
-        </main>
-      </div>
+      </main>
     </div>
   );
 }

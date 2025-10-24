@@ -33,13 +33,11 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Discover", href: "/data-explorer", icon: Compass },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Query Editor", href: "/query", icon: Database },
   { name: "Dashboard Builder", href: "/builder", icon: Layout },
   { name: "Data Visualization", href: "/charts", icon: FileBarChart },
   { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
   { name: "Bounties", href: "/bounties", icon: Trophy },
-  { name: "Wallet", href: "/wallet", icon: Wallet },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -102,7 +100,7 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
   return (
     <div
       className={cn(
-        "sidebar-mobile fixed left-0 top-0 h-screen glass-card border-r border-border/30 text-card-foreground transition-all duration-300 z-40 shadow-2xl",
+        "flex-shrink-0 h-screen bg-card/95 backdrop-blur-sm border-r border-border text-card-foreground transition-all duration-300 shadow-lg sticky top-0",
         collapsed ? "w-16" : "w-64",
         className
       )}

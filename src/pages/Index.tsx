@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { StatsOverview } from "@/components/dashboard/StatsOverview";
 import { QueryEditor } from "@/components/query/QueryEditor";
@@ -46,14 +45,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AuthenticatedSidebar />
-      <div className="lg:ml-64">
-        <Header
-          title="Analytics Dashboard"
-          subtitle="Monitor Starknet network activity and performance"
-        />
+      <Header
+        title="Analytics Dashboard"
+        subtitle="Monitor Starknet network activity and performance"
+      />
 
-        <main className="p-6 space-y-6">
+      <main className="p-6 space-y-6">
           {/* Stats Overview */}
           <StatsOverview />
 
@@ -182,8 +179,7 @@ const Index = () => {
               </div>
             </CardContent>
           </Card>
-        </main>
-      </div>
+      </main>
 
       {/* AI Components */}
       {!chatOpen && <AIFloatingButton onClick={() => setChatOpen(true)} />}

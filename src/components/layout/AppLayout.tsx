@@ -18,11 +18,11 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
-      <div className="lg:ml-64">
+      <main className="flex-1 min-w-0 overflow-auto">
         {children}
-      </div>
+      </main>
     </div>
   );
 }
