@@ -172,9 +172,11 @@ export default function PublicDashboard() {
                 <Card className="h-full">
                   {widget.type === 'markdown' ? (
                     <CardContent className="p-4 h-full overflow-auto">
-                      <ReactMarkdown className="prose prose-sm max-w-none dark:prose-invert">
-                        {widget.content?.text || ''}
-                      </ReactMarkdown>
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown>
+                          {widget.content?.text || ''}
+                        </ReactMarkdown>
+                      </div>
                     </CardContent>
                   ) : (
                     <>
