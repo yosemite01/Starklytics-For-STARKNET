@@ -23,6 +23,7 @@ const QueryEditor = lazy(() => import("./pages/QueryEditor"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Bounties = lazy(() => import("./pages/Bounties"));
 const DashboardBuilder = lazy(() => import("./pages/DashboardBuilder"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const DataVisualization = lazy(() => import("./pages/DataVisualization"));
 const Wallet = lazy(() => import("./pages/Wallet"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -123,6 +124,11 @@ const App = () => (
             <Route path="/builder" element={
               <ProtectedRoute>
                 <DashboardBuilder />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/:username/:slug" element={
+              <ProtectedRoute>
+                <DashboardPage />
               </ProtectedRoute>
             } />
             <Route path="/charts" element={
