@@ -24,6 +24,7 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const Bounties = lazy(() => import("./pages/Bounties"));
 const DashboardBuilder = lazy(() => import("./pages/DashboardBuilder"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const PublicDashboard = lazy(() => import("./pages/PublicDashboard"));
 const DataVisualization = lazy(() => import("./pages/DataVisualization"));
 const Wallet = lazy(() => import("./pages/Wallet"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -131,6 +132,7 @@ const App = () => (
                 <DashboardPage />
               </ProtectedRoute>
             } />
+            <Route path="/d/:username/:slug" element={<PublicDashboard />} />
             <Route path="/charts" element={
               <ProtectedRoute>
                 <DataVisualization />

@@ -10,15 +10,17 @@ interface DashboardHeaderProps {
     name: string;
     slug: string;
     isPrivate: boolean;
+    isPublished?: boolean;
     userId: string;
     createdAt: string;
   };
   isEditing: boolean;
   onEditToggle: () => void;
   onSave?: () => void;
+  onPublish?: () => void;
 }
 
-export function DashboardHeader({ dashboard, isEditing, onEditToggle, onSave }: DashboardHeaderProps) {
+export function DashboardHeader({ dashboard, isEditing, onEditToggle, onSave, onPublish }: DashboardHeaderProps) {
   const [sharing, setSharing] = useState(false);
   const [screenshotting, setScreenshotting] = useState(false);
 
@@ -72,9 +74,14 @@ export function DashboardHeader({ dashboard, isEditing, onEditToggle, onSave }: 
       <div className="flex h-14 items-center justify-between px-6">
         <div className="flex items-center space-x-4">
           <h1 className="text-lg font-semibold">{dashboard.name}</h1>
-          {dashboard.isPrivate && (
-            <Badge variant="secondary" className="text-xs">Private</Badge>
-          )}
+          <div className="flex items-center space-x-2">
+            {dashboard.isPrivate && (
+              <Badge variant="secondary" className="text-xs">Private</Badge>
+            )}
+            {dashboard.isPublished && (
+              <Badge variant="default" className="text-xs bg-green-500">Published</Badge>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -126,14 +133,26 @@ export function DashboardHeader({ dashboard, isEditing, onEditToggle, onSave }: 
               </Button>
             </div>
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onEditToggle}
-            >
-              <Edit3 className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onEditToggle}
+              >
+                <Edit3 className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+              {!dashboard.isPublished && onPublish && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onPublish}
+                  className="bg-green-500 text-white hover:bg-green-600"
+                >
+                  Publish
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>

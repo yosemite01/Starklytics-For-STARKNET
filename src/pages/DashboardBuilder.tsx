@@ -12,9 +12,11 @@ interface Dashboard {
   name: string;
   slug: string;
   isPrivate: boolean;
+  isPublished?: boolean;
   userId: string;
   createdAt: string;
-  blocks: any[];
+  blocks?: any[];
+  widgets?: any[];
 }
 
 export default function DashboardBuilder() {
@@ -31,14 +33,27 @@ export default function DashboardBuilder() {
       const key = localStorage.key(i);
       if (key?.startsWith('dashboard_')) {
         try {
-          const dashboard = JSON.parse(localStorage.getItem(key) || '{}');
-          stored.push(dashboard);
+          const dashboardData = localStorage.getItem(key);
+          if (dashboardData) {
+            const dashboard = JSON.parse(dashboardData);
+            if (dashboard.id && dashboard.name) {
+              stored.push({
+                ...dashboard,
+                widgets: Array.isArray(dashboard.widgets) ? dashboard.widgets : [],
+                blocks: Array.isArray(dashboard.blocks) ? dashboard.blocks : []
+              });
+            }
+          }
         } catch (error) {
-          console.error('Failed to load dashboard:', error);
+          console.error('Failed to load dashboard:', key, error);
         }
       }
     }
-    setDashboards(stored.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setDashboards(stored.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    }));
   };
 
   const deleteDashboard = (id: string) => {
@@ -113,8 +128,11 @@ export default function DashboardBuilder() {
                           <Badge variant="secondary" className="text-xs">Private</Badge>
                         )}
                         <span className="text-sm text-muted-foreground">
-                          {dashboard.blocks?.length || 0} blocks
+                          {(dashboard.widgets?.length || dashboard.blocks?.length || 0)} items
                         </span>
+                        {dashboard.isPublished && (
+                          <Badge variant="default" className="text-xs bg-green-500">Published</Badge>
+                        )}
                       </div>
                       <Button
                         size="sm"
