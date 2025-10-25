@@ -18,9 +18,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <AuthenticatedSidebar />
-      <main className="flex-1 min-w-0 overflow-auto">
+      <main className="ml-0 lg:ml-64 min-h-screen transition-all duration-300">
         {children}
       </main>
     </div>

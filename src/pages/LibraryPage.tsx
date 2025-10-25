@@ -1,181 +1,267 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Star, Archive, Folder, Play, Trash2, Calendar } from "lucide-react";
-
-interface LibraryItem {
-  id: string;
-  name: string;
-  type: 'query' | 'dashboard' | 'visualization';
-  query?: string;
-  createdAt: string;
-  lastRun?: string;
-  isFavorite?: boolean;
-}
-
-const mockLibraryItems: Record<string, LibraryItem[]> = {
-  creations: [
-    {
-      id: '1',
-      name: 'DeFi TVL Analysis',
-      type: 'query',
-      query: 'SELECT protocol, SUM(tvl_usd) FROM defi_protocols GROUP BY protocol',
-      createdAt: '2025-01-15',
-      lastRun: '2025-01-20'
-    },
-    {
-      id: '2', 
-      name: 'Transaction Volume Dashboard',
-      type: 'dashboard',
-      createdAt: '2025-01-18'
-    }
-  ],
-  favorites: [
-    {
-      id: '3',
-      name: 'Top Traders Query',
-      type: 'query',
-      query: 'SELECT from_address, COUNT(*) FROM transactions GROUP BY from_address',
-      createdAt: '2025-01-10',
-      lastRun: '2025-01-19',
-      isFavorite: true
-    }
-  ],
-  archived: [
-    {
-      id: '4',
-      name: 'Old Price Analysis',
-      type: 'query',
-      query: 'SELECT * FROM historical_prices WHERE date < "2024-01-01"',
-      createdAt: '2024-12-01'
-    }
-  ]
-};
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Header } from '@/components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Database, 
+  Layout, 
+  Search, 
+  FileText, 
+  Folder, 
+  Star, 
+  Trash2,
+  Plus,
+  Calendar,
+  Clock
+} from 'lucide-react';
 
 export default function LibraryPage() {
-  const { type } = useParams<{ type: string }>();
+  const { type } = useParams();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [savedQueries, setSavedQueries] = useState<any[]>([]);
+  const [savedDashboards, setSavedDashboards] = useState<any[]>([]);
 
   useEffect(() => {
-    if (type && mockLibraryItems[type]) {
-      setItems(mockLibraryItems[type]);
-    }
-  }, [type]);
+    loadLibraryItems();
+  }, []);
 
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (item.query && item.query.toLowerCase().includes(searchQuery.toLowerCase()))
+  const loadLibraryItems = () => {
+    // Load saved queries
+    const queries = JSON.parse(localStorage.getItem('saved_queries') || '[]')
+      .filter((q: any) => q.name && !q.name.startsWith('Query '));
+    setSavedQueries(queries);
+
+    // Load saved dashboards
+    const dashboards = JSON.parse(localStorage.getItem('saved_dashboards') || '[]')
+      .filter((d: any) => d.name && !d.name.startsWith('Dashboard ') && !d.name.match(/^Dashboard \d+$/));
+    setSavedDashboards(dashboards);
+  };
+
+  const deleteQuery = (id: string) => {
+    const queries = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+    const filtered = queries.filter((q: any) => q.id !== id);
+    localStorage.setItem('saved_queries', JSON.stringify(filtered));
+    loadLibraryItems();
+  };
+
+  const deleteDashboard = (id: string) => {
+    const dashboards = JSON.parse(localStorage.getItem('saved_dashboards') || '[]');
+    const filtered = dashboards.filter((d: any) => d.id !== id);
+    localStorage.setItem('saved_dashboards', JSON.stringify(filtered));
+    loadLibraryItems();
+  };
+
+  const filteredQueries = savedQueries.filter(q => 
+    q.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getIcon = () => {
-    switch (type) {
-      case 'favorites': return Star;
-      case 'archived': return Archive;
-      default: return Folder;
-    }
-  };
-
-  const getTitle = () => {
-    switch (type) {
-      case 'favorites': return 'Favorites';
-      case 'archived': return 'Archived';
-      default: return 'My Queries';
-    }
-  };
-
-  const IconComponent = getIcon();
-
-  const runQuery = (item: LibraryItem) => {
-    if (item.query) {
-      localStorage.setItem('loadQuery', item.query);
-      navigate('/query');
-    }
-  };
+  const filteredDashboards = savedDashboards.filter(d => 
+    d.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <IconComponent className="w-6 h-6" />
-          <h1 className="text-2xl font-bold">{getTitle()}</h1>
-          <span className="text-sm text-muted-foreground">({filteredItems.length} items)</span>
-        </div>
-      </div>
+    <>
+      <Header 
+        title="Library" 
+        subtitle="Manage your saved queries and dashboards"
+      />
+      
+      <main className="p-6">
+        <div className="space-y-6">
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search library..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search your library..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+          <Tabs defaultValue="queries" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="queries" className="flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                Saved Queries ({filteredQueries.length})
+              </TabsTrigger>
+              <TabsTrigger value="dashboards" className="flex items-center gap-2">
+                <Layout className="w-4 h-4" />
+                Saved Dashboards ({filteredDashboards.length})
+              </TabsTrigger>
+            </TabsList>
 
-      <div className="grid gap-4">
-        {filteredItems.map((item) => (
-          <Card key={item.id} className="hover:shadow-md transition-all duration-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-lg">{item.name}</CardTitle>
-                  <span className="px-2 py-1 bg-muted rounded text-xs capitalize">
-                    {item.type}
-                  </span>
-                  {item.isFavorite && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />}
-                </div>
-                <div className="flex gap-2">
-                  {item.query && (
-                    <Button size="sm" onClick={() => runQuery(item)}>
-                      <Play className="w-4 h-4 mr-1" />
-                      Run
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+            <TabsContent value="queries" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Saved Queries</h2>
+                <Button onClick={() => navigate('/query')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Query
+                </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {item.query && (
-                <div className="mb-3">
-                  <code className="text-sm bg-muted p-2 rounded block font-mono">
-                    {item.query.length > 100 ? `${item.query.substring(0, 100)}...` : item.query}
-                  </code>
+
+              {filteredQueries.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+                      <Database className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">No saved queries yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Create and save your first query to see it here
+                      </p>
+                      <Button onClick={() => navigate('/query')}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Query
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredQueries.map((query) => (
+                    <Card key={query.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-primary" />
+                            <CardTitle className="text-base truncate">{query.name}</CardTitle>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteQuery(query.id);
+                            }}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          <div className="bg-muted p-2 rounded text-xs font-mono truncate">
+                            {query.query}
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(query.createdAt).toLocaleDateString()}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {query.results?.length || 0} rows
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => {
+                              localStorage.setItem('loadQuery', query.query);
+                              navigate('/query');
+                            }}
+                          >
+                            Open Query
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  Created {item.createdAt}
-                </div>
-                {item.lastRun && (
-                  <div className="flex items-center gap-1">
-                    <Play className="w-4 h-4" />
-                    Last run {item.lastRun}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            </TabsContent>
 
-      {filteredItems.length === 0 && (
-        <div className="text-center py-12">
-          <IconComponent className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No items found</h3>
-          <p className="text-muted-foreground">
-            {searchQuery ? 'Try adjusting your search terms' : `Your ${getTitle().toLowerCase()} folder is empty`}
-          </p>
+            <TabsContent value="dashboards" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Saved Dashboards</h2>
+                <Button onClick={() => navigate('/builder?new=true')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Dashboard
+                </Button>
+              </div>
+
+              {filteredDashboards.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+                      <Layout className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">No saved dashboards yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Create and save your first dashboard to see it here
+                      </p>
+                      <Button onClick={() => navigate('/builder?new=true')}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Dashboard
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredDashboards.map((dashboard) => (
+                    <Card key={dashboard.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <Folder className="w-4 h-4 text-primary" />
+                            <CardTitle className="text-base truncate">{dashboard.name}</CardTitle>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteDashboard(dashboard.id);
+                            }}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            {dashboard.description || 'No description'}
+                          </p>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(dashboard.createdAt).toLocaleDateString()}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Layout className="w-3 h-3" />
+                              {dashboard.widgets?.length || 0} widgets
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => navigate(`/builder?id=${dashboard.id}`)}
+                          >
+                            Open Dashboard
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
-      )}
-    </div>
+      </main>
+    </>
   );
 }

@@ -24,6 +24,17 @@ export default function DashboardBuilder() {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
 
   useEffect(() => {
+    // Check if this is a new dashboard creation from the sidebar
+    const urlParams = new URLSearchParams(window.location.search);
+    const isNew = urlParams.get('new');
+    
+    if (isNew === 'true') {
+      // Create new dashboard immediately
+      setShowCreateModal(true);
+      // Clear the URL parameter
+      window.history.replaceState({}, '', '/builder');
+    }
+    
     loadDashboards();
   }, []);
 
@@ -60,6 +71,8 @@ export default function DashboardBuilder() {
     localStorage.removeItem(`dashboard_${id}`);
     loadDashboards();
   };
+
+
 
   return (
     <>

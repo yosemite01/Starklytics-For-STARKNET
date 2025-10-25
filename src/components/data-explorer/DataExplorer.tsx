@@ -110,9 +110,9 @@ export function DataExplorer() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-full">
       {/* Left Panel - Categories */}
-      <div className="w-1/4 min-w-[200px] border-r border-border p-4 bg-card/50">
+      <div className="w-1/4 min-w-[200px] border-r border-border/30 p-4">
         <div className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold mb-3">Categories</h3>
@@ -121,7 +121,7 @@ export function DataExplorer() {
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all duration-200 cursor-pointer ${
+                  className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all duration-200 ${
                     selectedCategory === category.id
                       ? 'bg-gradient-to-r from-primary/20 to-accent/20 text-foreground'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -144,7 +144,7 @@ export function DataExplorer() {
       </div>
 
       {/* Main Area - Dataset List */}
-      <div className="flex-1 p-6 overflow-auto">
+      <div className="flex-1 p-6">
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -207,20 +207,12 @@ export function DataExplorer() {
                   };
 
                   return (
-                    <div 
-                      key={tx.hash} 
-                      className="flex items-center justify-between p-3 rounded-lg border border-border/30 hover:bg-muted/30 transition-colors cursor-pointer group"
-                      onClick={() => {
-                        console.log('Transaction clicked:', tx.hash);
-                        // Open transaction details or navigate to explorer
-                        window.open(`https://starkscan.co/tx/${tx.hash}`, '_blank');
-                      }}
-                    >
+                    <div key={tx.hash} className="flex items-center justify-between p-3 rounded-lg border border-border/30 hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-3">
                         {getTypeIcon(tx.type)}
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm group-hover:text-primary transition-colors">
+                            <span className="font-mono text-sm">
                               {tx.hash.slice(0, 10)}...{tx.hash.slice(-8)}
                             </span>
                             <Badge className={`text-xs ${getTypeBadge(tx.type)}`}>
@@ -260,11 +252,7 @@ export function DataExplorer() {
             {filteredDatasets.map((dataset) => (
               <div
                 key={dataset.id}
-                className="p-4 border border-border rounded-lg hover:shadow-md transition-all duration-200 cursor-pointer group bg-card/50 hover:bg-card/80"
-                onClick={() => {
-                  console.log('Dataset clicked:', dataset.name);
-                  // Add navigation or modal logic here
-                }}
+                className="p-4 border border-border rounded-lg hover:shadow-md transition-all duration-200 cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-2">

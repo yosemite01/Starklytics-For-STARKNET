@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Play, Save, Download, Wand2, BarChart3, Lightbulb } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Play, Save, Download, Wand2, BarChart3, Lightbulb, RefreshCw, Zap, Trophy, Activity, Users } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { SavedQueries } from './SavedQueries';
 import { useQuerySaver } from '@/hooks/useQuerySaver';
 import { useNavigate } from 'react-router-dom';
 
@@ -233,13 +233,13 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
   }, [query, isAutosaveEnabled, saveQueryToCollection]);
 
   const saveQuery = () => {
-    const queryName = prompt(`Enter a name for this query:`, `Query ${Date.now()}`);
-    if (!queryName) return;
+    const queryName = prompt(`Enter a name for this query:`, ``);
+    if (!queryName || queryName.trim() === '') return;
     
     // Save query with results and visualization config
     const savedQuery = {
       id: `query-${Date.now()}`,
-      name: queryName,
+      name: queryName.trim(),
       query: query,
       results: results,
       visualizations: generateVisualizationsFromResults(results),
@@ -252,8 +252,8 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
     localStorage.setItem('saved_queries', JSON.stringify(existingQueries));
     
     toast({
-      title: "Query saved with visualizations",
-      description: `"${queryName}" saved with ${savedQuery.visualizations.length} auto-generated charts`,
+      title: "Query saved",
+      description: `"${queryName}" has been saved to your library`,
     });
   };
   
@@ -313,14 +313,14 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <SavedQueries 
-        queries={savedQueries}
-        autosaveEnabled={isAutosaveEnabled}
-        onAutosaveToggle={() => toggleAutosave()}
-        onSelectQuery={setQuery}
-        onDeleteQuery={deleteQuery}
-      />
+    <div className="space-y-6">
+      {/* Quick Query Header */}
+      <div>
+        <h1 className="text-2xl font-bold mb-2">Quick Query</h1>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3 space-y-4">
       
       <Tabs defaultValue="editor" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -452,6 +452,159 @@ export function QueryEditor({ onQueryComplete }: QueryEditorProps) {
           </CardContent>
         </Card>
       )}
+        </div>
+        
+        {/* Right Sidebar */}
+        <div className="space-y-4">
+          {/* AI Suggestions */}
+          <Card className="glass">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                AI Suggestions
+              </CardTitle>
+              <Button variant="ghost" size="icon" className="h-6 w-6">
+                <RefreshCw className="w-3 h-3" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground mb-3">
+                Last updated: {new Date().toLocaleTimeString()}
+              </p>
+              
+              <div className="space-y-3">
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium">Analyze Recent Block Activity</h4>
+                    <Badge variant="destructive" className="text-xs">high</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Block N/A: Examine transaction patterns in the last 100 blocks.
+                  </p>
+                  <Badge variant="outline" className="text-xs">analysis</Badge>
+                </div>
+                
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium">Query DeFi Protocol Performance</h4>
+                    <Badge variant="secondary" className="text-xs">medium</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Compare TVL changes across major DeFi protocols this week.
+                  </p>
+                  <Badge variant="outline" className="text-xs">query</Badge>
+                </div>
+                
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium">Visualize Gas Usage Trends</h4>
+                    <Badge variant="secondary" className="text-xs">medium</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Create charts showing gas consumption by contract type.
+                  </p>
+                  <Badge variant="outline" className="text-xs">visualization</Badge>
+                </div>
+                
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium">Network Health Check</h4>
+                    <Badge variant="outline" className="text-xs">low</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Block N/A: Network operating normally. Monitor for anomalies.
+                  </p>
+                  <Badge variant="outline" className="text-xs">insight</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Query Suggestions */}
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Query Suggestions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setQuery('SELECT * FROM bounties WHERE status = "active" ORDER BY reward DESC;')}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Trophy className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm font-medium">Active Bounties</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-2">Bounties</div>
+                  <p className="text-xs text-muted-foreground mb-2">Get all currently active bounties</p>
+                  <Button size="sm" variant="outline" className="text-xs h-6">
+                    Use Query
+                  </Button>
+                </div>
+                
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setQuery('SELECT * FROM bounties ORDER BY reward DESC LIMIT 10;')}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <BarChart3 className="w-4 h-4 text-green-500" />
+                    <span className="text-sm font-medium">Top Rewards</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-2">Analytics</div>
+                  <p className="text-xs text-muted-foreground mb-2">Find bounties with highest rewards</p>
+                  <Button size="sm" variant="outline" className="text-xs h-6">
+                    Use Query
+                  </Button>
+                </div>
+                
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setQuery('SELECT * FROM submissions WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);')}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Activity className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium">Recent Activity</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-2">Activity</div>
+                  <p className="text-xs text-muted-foreground mb-2">Show submissions from last 7 days</p>
+                  <Button size="sm" variant="outline" className="text-xs h-6">
+                    Use Query
+                  </Button>
+                </div>
+                
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setQuery('SELECT user_id, COUNT(*) as bounties_won FROM bounties WHERE status = "completed" GROUP BY user_id;')}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="w-4 h-4 text-purple-500" />
+                    <span className="text-sm font-medium">User Statistics</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-2">Users</div>
+                  <p className="text-xs text-muted-foreground mb-2">Count bounties won by each user</p>
+                  <Button size="sm" variant="outline" className="text-xs h-6">
+                    Use Query
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Recent Bounties */}
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Recent Bounties</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-3">
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <h4 className="text-sm font-medium mb-1">Analyze Starknet Transaction Patterns</h4>
+                  <p className="text-xs text-muted-foreground mb-2">Reward: 500 STRK</p>
+                  <Badge variant="default" className="text-xs">Active</Badge>
+                </div>
+                
+                <div className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <h4 className="text-sm font-medium mb-1">DeFi Protocol Usage Analysis</h4>
+                  <p className="text-xs text-muted-foreground mb-2">Reward: 750 STRK</p>
+                  <Badge variant="default" className="text-xs">Active</Badge>
+                </div>
+              </div>
+              
+              <Button variant="outline" className="w-full text-xs">
+                View All Bounties
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
