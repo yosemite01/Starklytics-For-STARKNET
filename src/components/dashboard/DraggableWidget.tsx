@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, GripVertical, BarChart3 } from 'lucide-react';
@@ -23,62 +23,87 @@ export function DraggableWidget({ widget, isEditing, onUpdate, onDelete }: Dragg
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const widgetRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isEditing) return;
-    
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - widget.position.x,
-      y: e.clientY - widget.position.y
-    });
-  };
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      try {
+        if (isDragging) {
+          const newX = Math.max(0, e.clientX - dragStart.x);
+          const newY = Math.max(0, e.clientY - dragStart.y);
+          
+          onUpdate(widget.id, {
+            position: { ...widget.position, x: newX, y: newY }
+          });
+        } else if (isResizing) {
+          const newWidth = Math.max(200, resizeStart.width + (e.clientX - resizeStart.x));
+          const newHeight = Math.max(150, resizeStart.height + (e.clientY - resizeStart.y));
+          
+          onUpdate(widget.id, {
+            position: { ...widget.position, width: newWidth, height: newHeight }
+          });
+        }
+      } catch (error) {
+        console.error('Mouse move error:', error);
+      }
+    };
 
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
-    if (!isEditing) return;
-    
-    e.stopPropagation();
-    setIsResizing(true);
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: widget.position.width,
-      height: widget.position.height
-    });
-  };
+    const handleMouseUp = () => {
+      try {
+        setIsDragging(false);
+        setIsResizing(false);
+      } catch (error) {
+        console.error('Mouse up error:', error);
+      }
+    };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (isDragging) {
-      const newX = Math.max(0, e.clientX - dragStart.x);
-      const newY = Math.max(0, e.clientY - dragStart.y);
-      
-      onUpdate(widget.id, {
-        position: { ...widget.position, x: newX, y: newY }
-      });
-    } else if (isResizing) {
-      const newWidth = Math.max(200, resizeStart.width + (e.clientX - resizeStart.x));
-      const newHeight = Math.max(150, resizeStart.height + (e.clientY - resizeStart.y));
-      
-      onUpdate(widget.id, {
-        position: { ...widget.position, width: newWidth, height: newHeight }
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setIsResizing(false);
-  };
-
-  // Add global mouse event listeners
-  if (typeof window !== 'undefined') {
     if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-    } else {
+    }
+
+    return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, dragStart, resizeStart, widget.id, widget.position, onUpdate]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    try {
+      if (!isEditing) return;
+      
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - widget.position.x,
+        y: e.clientY - widget.position.y
+      });
+    } catch (error) {
+      console.error('Mouse down error:', error);
     }
-  }
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    try {
+      if (!isEditing) return;
+      
+      e.stopPropagation();
+      setIsResizing(true);
+      setResizeStart({
+        x: e.clientX,
+        y: e.clientY,
+        width: widget.position.width,
+        height: widget.position.height
+      });
+    } catch (error) {
+      console.error('Resize mouse down error:', error);
+    }
+  };
+
+  const handleDelete = () => {
+    try {
+      onDelete(widget.id);
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
+  };
 
   return (
     <div
@@ -91,18 +116,19 @@ export function DraggableWidget({ widget, isEditing, onUpdate, onDelete }: Dragg
         height: widget.position.height,
       }}
     >
-      <Card className={`h-full ${isEditing ? 'border-2 border-dashed border-primary' : ''}`}>
+      <Card className={`h-full shadow-lg ${isEditing ? 'border-2 border-dashed border-primary shadow-xl' : 'shadow-md hover:shadow-lg transition-shadow'}`}>
         {isEditing && (
-          <div className="absolute -top-8 left-0 flex items-center space-x-2 bg-background border rounded px-2 py-1">
+          <div className="absolute -top-10 left-0 flex items-center space-x-2 bg-background border rounded px-3 py-2 shadow-lg z-50">
             <GripVertical 
-              className="h-4 w-4 cursor-move" 
+              className="h-4 w-4 cursor-move text-muted-foreground hover:text-primary" 
               onMouseDown={handleMouseDown}
             />
+            <span className="text-xs text-muted-foreground">{widget.type}</span>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onDelete(widget.id)}
-              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+              onClick={handleDelete}
+              className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-3 w-3" />
             </Button>
@@ -111,9 +137,11 @@ export function DraggableWidget({ widget, isEditing, onUpdate, onDelete }: Dragg
         
         {widget.type === 'markdown' ? (
           <CardContent className="p-4 h-full overflow-auto">
-            <ReactMarkdown className="prose prose-sm max-w-none dark:prose-invert">
-              {widget.content?.text || '# Empty Text Block\n\nClick edit to add content.'}
-            </ReactMarkdown>
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown>
+                {widget.content?.text || '# Empty Text Block\n\nClick edit to add content.'}
+              </ReactMarkdown>
+            </div>
           </CardContent>
         ) : (
           <>
@@ -133,9 +161,11 @@ export function DraggableWidget({ widget, isEditing, onUpdate, onDelete }: Dragg
         
         {isEditing && (
           <div
-            className="absolute bottom-0 right-0 w-4 h-4 bg-primary cursor-se-resize"
+            className="absolute bottom-0 right-0 w-6 h-6 bg-primary cursor-se-resize rounded-tl-lg flex items-center justify-center opacity-80 hover:opacity-100"
             onMouseDown={handleResizeMouseDown}
-          />
+          >
+            <div className="w-2 h-2 bg-white rounded-full" />
+          </div>
         )}
       </Card>
     </div>

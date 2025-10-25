@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AuthenticatedSidebar } from '@/components/layout/AuthenticatedSidebar';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -529,10 +528,8 @@ export default function ContractEventsEDA() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AuthenticatedSidebar />
-      <div className="lg:ml-64">
-          <Header title="Contract Events EDA" subtitle="Basic event analysis for any Starknet contract" />
-          <main className="p-6 space-y-6">
+      <Header title="Contract Events EDA" subtitle="Basic event analysis for any Starknet contract" />
+      <main className="p-6 space-y-6">
             <Card className="glass max-w-xl mx-auto">
               <CardHeader>
                 <CardTitle>Enter Mainnet Contract Address</CardTitle>
@@ -867,8 +864,7 @@ export default function ContractEventsEDA() {
                 </CardContent>
               </Card>
             )}
-          </main>
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { AuthenticatedSidebar } from "@/components/layout/AuthenticatedSidebar";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,14 +92,12 @@ const Bounties = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AuthenticatedSidebar />
-      <div className="lg:ml-64">
-          <Header 
-            title="Analytics Bounties" 
-            subtitle="Contribute to Starknet analytics and earn rewards"
-          />
-          
-          <main className="p-6 space-y-6">
+      <Header 
+        title="Analytics Bounties" 
+        subtitle="Contribute to Starknet analytics and earn rewards"
+      />
+      
+      <main className="p-6 space-y-6">
             {/* Stats */}
             <div className="grid gap-4 md:grid-cols-4">
               <Card className="glass">
@@ -240,8 +237,7 @@ const Bounties = () => {
                 ))}
               </div>
             )}
-          </main>
-      </div>
+      </main>
     </div>
   );
 };

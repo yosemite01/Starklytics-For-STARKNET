@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWallet } from "@/hooks/use-wallet";
-import { useQuerySaver } from "@/hooks/useQuerySaver";
 import { 
   BarChart3, 
   Database, 
@@ -20,23 +19,14 @@ import {
   LogOut,
   FileBarChart,
   Activity,
-  Book,
-  Compass,
-  Library,
-  Folder,
-  Star,
-  Archive,
-  ChevronDown,
-  ChevronRight
+  Book
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Discover", href: "/data-explorer", icon: Compass },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Query Editor", href: "/query", icon: Database },
   { name: "Dashboard Builder", href: "/builder", icon: Layout },
-  { name: "Data Visualization", href: "/charts", icon: FileBarChart },
+
   { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
   { name: "Bounties", href: "/bounties", icon: Trophy },
   { name: "Wallet", href: "/wallet", icon: Wallet },
@@ -49,29 +39,10 @@ interface AuthenticatedSidebarProps {
 
 export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [libraryExpanded, setLibraryExpanded] = useState(true);
-  const [folders, setFolders] = useState([
-    { id: 1, name: "My Queries", type: "creations", count: 0 },
-    { id: 2, name: "Favorites", type: "favorites", count: 0 },
-    { id: 3, name: "Archived", type: "archived", count: 0 }
-  ]);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const { connectWallet, isConnected, walletAddress, detectWallets } = useWallet();
-  const { savedQueries } = useQuerySaver();
-
-  useEffect(() => {
-    const favorites = savedQueries.filter(q => q.isFavorite).length;
-    const archived = savedQueries.filter(q => q.isArchived).length;
-    const myQueries = savedQueries.filter(q => !q.isArchived).length;
-    
-    setFolders([
-      { id: 1, name: "My Queries", type: "creations", count: myQueries },
-      { id: 2, name: "Favorites", type: "favorites", count: favorites },
-      { id: 3, name: "Archived", type: "archived", count: archived }
-    ]);
-  }, [savedQueries]);
 
   const handleProfileClick = () => {
     navigate('/profile');
@@ -175,79 +146,21 @@ export function AuthenticatedSidebar({ className }: AuthenticatedSidebarProps) {
             );
           })}
 
-          {/* Library Section */}
-          {!collapsed && (
-            <div className="pt-4">
-              <div className="px-3 py-2 flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Library
-                </p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-4 w-4 p-0"
-                  onClick={() => setLibraryExpanded(!libraryExpanded)}
-                >
-                  {libraryExpanded ? (
-                    <ChevronDown className="w-3 h-3" />
-                  ) : (
-                    <ChevronRight className="w-3 h-3" />
-                  )}
-                </Button>
-              </div>
-              
-              {libraryExpanded && (
-                <div className="space-y-1">
-                  {folders.map((folder) => (
-                    <div
-                      key={folder.id}
-                      className="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 hover:text-foreground cursor-pointer transition-all duration-200"
-                      onClick={() => navigate(`/library/${folder.type}`)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        {folder.type === 'favorites' ? (
-                          <Star className="w-4 h-4" />
-                        ) : folder.type === 'archived' ? (
-                          <Archive className="w-4 h-4" />
-                        ) : (
-                          <Folder className="w-4 h-4" />
-                        )}
-                        <span>{folder.name}</span>
-                      </div>
-                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
-                        {folder.count}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Quick Actions */}
           {!collapsed && (
             <div className="pt-4">
               <div className="px-3 py-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Create
+                  Quick Actions
                 </p>
               </div>
-              <div className="space-y-1">
-                <Link
-                  to="/queries/new"
-                  className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-muted-foreground hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 hover:text-foreground hover:shadow-md"
-                >
-                  <Plus className="w-5 h-5 transition-colors text-muted-foreground group-hover:text-primary" />
-                  <span>New Query</span>
-                </Link>
-                <Link
-                  to="/create-bounty"
-                  className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-muted-foreground hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 hover:text-foreground hover:shadow-md"
-                >
-                  <Trophy className="w-5 h-5 transition-colors text-muted-foreground group-hover:text-primary" />
-                  <span>Create Bounty</span>
-                </Link>
-              </div>
+              <Link
+                to="/create-bounty"
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-muted-foreground hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 hover:text-foreground hover:shadow-md"
+              >
+                <Plus className="w-5 h-5 transition-colors text-muted-foreground group-hover:text-primary" />
+                <span>Create Bounty</span>
+              </Link>
             </div>
           )}
         </nav>

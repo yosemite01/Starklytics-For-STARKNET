@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 // Core pages (immediately loaded)
 import Index from "./pages/Index";
@@ -25,7 +26,7 @@ const Bounties = lazy(() => import("./pages/Bounties"));
 const DashboardBuilder = lazy(() => import("./pages/DashboardBuilder"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const PublicDashboard = lazy(() => import("./pages/PublicDashboard"));
-const DataVisualization = lazy(() => import("./pages/DataVisualization"));
+const Charts = lazy(() => import("./pages/Charts"));
 const Wallet = lazy(() => import("./pages/Wallet"));
 const Settings = lazy(() => import("./pages/Settings"));
 const JoinBounty = lazy(() => import("./pages/JoinBounty"));
@@ -47,12 +48,13 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              </div>
-            }>
-              <Routes>
+            <AppLayout>
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                </div>
+              }>
+                <Routes>
                 {/* Public routes */}
                 <Route path="/auth" element={
                   <ProtectedRoute requireAuth={false}>
@@ -110,6 +112,11 @@ const App = () => (
                 <LibraryPage />
               </ProtectedRoute>
             } />
+            <Route path="/library" element={
+              <ProtectedRoute>
+                <LibraryPage />
+              </ProtectedRoute>
+            } />
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/analytics" element={
@@ -135,7 +142,7 @@ const App = () => (
             <Route path="/d/:username/:slug" element={<PublicDashboard />} />
             <Route path="/charts" element={
               <ProtectedRoute>
-                <DataVisualization />
+                <Charts />
               </ProtectedRoute>
             } />
             <Route path="/wallet" element={
@@ -159,10 +166,11 @@ const App = () => (
               </ProtectedRoute>
             } />
             
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-            </Suspense>
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </AppLayout>
           </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>

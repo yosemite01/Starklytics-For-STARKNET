@@ -156,71 +156,128 @@ export default function DashboardPage() {
     }
   };
 
+  const findNonOverlappingPosition = (width: number, height: number) => {
+    const padding = 20;
+    const startX = 50;
+    const startY = 100;
+    const stepX = 50;
+    const stepY = 50;
+    
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        const x = startX + (col * stepX);
+        const y = startY + (row * stepY);
+        
+        const overlaps = dashboard?.widgets.some(widget => {
+          const wx = widget.position.x;
+          const wy = widget.position.y;
+          const ww = widget.position.width;
+          const wh = widget.position.height;
+          
+          return !(x + width + padding < wx || 
+                   x > wx + ww + padding || 
+                   y + height + padding < wy || 
+                   y > wy + wh + padding);
+        });
+        
+        if (!overlaps) {
+          return { x, y };
+        }
+      }
+    }
+    
+    return { x: startX, y: startY };
+  };
+
   const addVisualWidget = (visual?: SavedVisualization) => {
-    if (!dashboard) return;
-    
-    const newWidget: DashboardWidget = {
-      id: `widget_${Date.now()}`,
-      type: 'visual',
-      content: visual ? {
-        title: visual.title,
-        visualType: visual.type,
-        data: visual.data,
-        visualId: visual.id
-      } : {
-        title: 'New Visualization',
-        visualType: 'bar',
-        data: [{ name: 'Sample', value: 100 }],
-        visualId: null
-      },
-      position: { x: 50, y: 50, width: 400, height: 300 }
-    };
-    
-    setDashboard({
-      ...dashboard,
-      widgets: [...dashboard.widgets, newWidget]
-    });
-    setShowVisualPicker(false);
-    setShowAddWidget(false);
+    try {
+      if (!dashboard) return;
+      
+      const position = findNonOverlappingPosition(400, 300);
+      
+      const newWidget: DashboardWidget = {
+        id: `widget_${Date.now()}`,
+        type: 'visual',
+        content: visual ? {
+          title: visual.title,
+          visualType: visual.type,
+          data: visual.data,
+          visualId: visual.id
+        } : {
+          title: 'New Visualization',
+          visualType: 'bar',
+          data: [{ name: 'Sample', value: 100 }],
+          visualId: null
+        },
+        position: { ...position, width: 400, height: 300 }
+      };
+      
+      setDashboard({
+        ...dashboard,
+        widgets: [...dashboard.widgets, newWidget]
+      });
+      setShowVisualPicker(false);
+      setShowAddWidget(false);
+    } catch (error) {
+      console.error('Failed to add visual widget:', error);
+      setShowVisualPicker(false);
+      setShowAddWidget(false);
+    }
   };
 
   const addTextWidget = () => {
-    if (!dashboard) return;
-    
-    const newWidget: DashboardWidget = {
-      id: `widget_${Date.now()}`,
-      type: 'markdown',
-      content: { text: textContent },
-      position: { x: 50, y: 50, width: 400, height: 300 }
-    };
-    
-    setDashboard({
-      ...dashboard,
-      widgets: [...dashboard.widgets, newWidget]
-    });
-    setShowTextEditor(false);
-    setShowAddWidget(false);
-    setTextContent('# New Section\n\nAdd your content here...');
+    try {
+      if (!dashboard) return;
+      
+      const position = findNonOverlappingPosition(400, 300);
+      
+      const newWidget: DashboardWidget = {
+        id: `widget_${Date.now()}`,
+        type: 'markdown',
+        content: { text: textContent },
+        position: { ...position, width: 400, height: 300 }
+      };
+      
+      setDashboard({
+        ...dashboard,
+        widgets: [...dashboard.widgets, newWidget]
+      });
+      setShowTextEditor(false);
+      setShowAddWidget(false);
+      setTextContent('# New Section\n\nAdd your content here...');
+    } catch (error) {
+      console.error('Failed to add text widget:', error);
+      setShowTextEditor(false);
+      setShowAddWidget(false);
+    }
   };
 
   const updateWidget = (id: string, updates: any) => {
-    if (!dashboard) return;
-    
-    setDashboard({
-      ...dashboard,
-      widgets: dashboard.widgets.map(widget =>
-        widget.id === id ? { ...widget, ...updates } : widget
-      )
-    });
+    try {
+      if (!dashboard) return;
+      
+      setDashboard({
+        ...dashboard,
+        widgets: dashboard.widgets.map(widget =>
+          widget.id === id ? { ...widget, ...updates } : widget
+        )
+      });
+    } catch (error) {
+      console.error('Failed to update widget:', error);
+    }
   };
 
   const deleteWidget = (id: string) => {
-    if (!dashboard) return;
-    
-    setDashboard({
-      ...dashboard,
-      widgets: dashboard.widgets.filter(widget => widget.id !== id)
-    });
+    try {
+      if (!dashboard) return;
+      
+      setDashboard({
+        ...dashboard,
+        widgets: dashboard.widgets.filter(widget => widget.id !== id)
+      });
+    } catch (error) {
+      console.error('Failed to delete widget:', error);
+    }
   };
 
   if (loading) {
@@ -252,7 +309,7 @@ export default function DashboardPage() {
   const isEmpty = !dashboard.widgets || dashboard.widgets.length === 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <DashboardHeader
         dashboard={dashboard}
         isEditing={isEditing}
@@ -261,7 +318,7 @@ export default function DashboardPage() {
         onPublish={handlePublish}
       />
       
-      <main className="relative" id="dashboard-content" style={{ minHeight: '600px' }}>
+      <main className="relative bg-gray-50/30 dark:bg-gray-900/30" id="dashboard-content" style={{ minHeight: '800px' }}>
         {isEditing && (
           <div className="absolute top-4 left-4 z-40">
             <Button onClick={() => setShowAddWidget(true)} className="bg-primary">
@@ -276,7 +333,7 @@ export default function DashboardPage() {
             <DashboardEmptyState onEdit={() => setIsEditing(true)} />
           </div>
         ) : (
-          <div className="relative w-full h-full p-6">
+          <div className="relative w-full h-full p-6" style={{ minHeight: '800px' }}>
             {dashboard.widgets.map((widget) => (
               <DraggableWidget
                 key={widget.id}
@@ -286,6 +343,17 @@ export default function DashboardPage() {
                 onDelete={deleteWidget}
               />
             ))}
+            
+            {/* Grid overlay for better positioning in edit mode */}
+            {isEditing && (
+              <div 
+                className="absolute inset-0 pointer-events-none opacity-10"
+                style={{
+                  backgroundImage: 'radial-gradient(circle, #666 1px, transparent 1px)',
+                  backgroundSize: '20px 20px'
+                }}
+              />
+            )}
           </div>
         )}
       </main>
@@ -398,6 +466,6 @@ export default function DashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
