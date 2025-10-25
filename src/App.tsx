@@ -24,6 +24,7 @@ const QueryEditor = lazy(() => import("./pages/QueryEditor"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Bounties = lazy(() => import("./pages/Bounties"));
 const DashboardBuilder = lazy(() => import("./pages/DashboardBuilder"));
+const DashboardEdit = lazy(() => import("./pages/DashboardEdit"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const PublicDashboard = lazy(() => import("./pages/PublicDashboard"));
 const Charts = lazy(() => import("./pages/Charts"));
@@ -132,6 +133,11 @@ const App = () => (
             <Route path="/builder" element={
               <ProtectedRoute>
                 <DashboardBuilder />
+              </ProtectedRoute>
+            } />
+            <Route path="/builder/edit/:id" element={
+              <ProtectedRoute>
+                <DashboardEdit />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/:username/:slug" element={

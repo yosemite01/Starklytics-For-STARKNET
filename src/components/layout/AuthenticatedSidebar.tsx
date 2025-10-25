@@ -26,7 +26,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Query Editor", href: "/query", icon: Database },
   { name: "Dashboard Builder", href: "/builder", icon: Layout },
-
+  { name: "Library", href: "/library", icon: Book },
   { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
   { name: "Bounties", href: "/bounties", icon: Trophy },
   { name: "Wallet", href: "/wallet", icon: Wallet },

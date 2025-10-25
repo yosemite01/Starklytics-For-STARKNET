@@ -27,12 +27,25 @@ export default function DashboardBuilder() {
     // Check if this is a new dashboard creation from the sidebar
     const urlParams = new URLSearchParams(window.location.search);
     const isNew = urlParams.get('new');
+    const source = urlParams.get('source');
+    const id = urlParams.get('id');
     
     if (isNew === 'true') {
       // Create new dashboard immediately
       setShowCreateModal(true);
       // Clear the URL parameter
       window.history.replaceState({}, '', '/builder');
+    } else if (source === 'query' && id) {
+      // Handle query-to-dashboard flow
+      const generatedDashboard = localStorage.getItem('ai_generated_dashboard');
+      if (generatedDashboard) {
+        const dashboardConfig = JSON.parse(generatedDashboard);
+        // Save the dashboard and navigate to edit
+        localStorage.setItem(`dashboard_${dashboardConfig.id}`, JSON.stringify(dashboardConfig));
+        localStorage.removeItem('ai_generated_dashboard');
+        window.location.href = `/builder/edit/${dashboardConfig.id}`;
+        return;
+      }
     }
     
     loadDashboards();
@@ -148,10 +161,10 @@ export default function DashboardBuilder() {
                       <Button
                         size="sm"
                         onClick={() => {
-                          window.location.href = `/dashboard/${dashboard.userId}/${dashboard.slug}?id=${dashboard.id}`;
+                          window.location.href = `/builder/edit/${dashboard.id}`;
                         }}
                       >
-                        Open
+                        Edit
                       </Button>
                     </div>
                   </CardContent>
