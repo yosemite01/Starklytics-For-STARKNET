@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 const RPC_ENDPOINTS = [
   'https://starknet-mainnet.public.blastapi.io',
   'https://free-rpc.nethermind.io/mainnet-juno',
+  'https://starknet-mainnet.g.alchemy.com/v2/demo',
+  'https://rpc.starknet.lava.build',
 ];
 
 export function useRpcEndpoint() {

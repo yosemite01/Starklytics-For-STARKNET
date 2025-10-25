@@ -1,33 +1,107 @@
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
+
 
 export function SocialLoginButtons() {
   const { toast } = useToast();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
+  const [googleClientId, setGoogleClientId] = useState<string>('');
+
+  useEffect(() => {
+    // Fetch Google client ID from backend
+    const fetchGoogleConfig = async () => {
+      try {
+        const response: any = await apiClient.getGoogleConfig();
+        if (response.success) {
+          setGoogleClientId(response.data.googleClientId);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Google config:', error);
+        // Fallback to demo client ID if backend is not available
+        setGoogleClientId('493459087329-esd7kq05bmm0v8k10h3glp1hrk91ipfj.apps.googleusercontent.com');
+      }
+    };
+
+    fetchGoogleConfig();
+  }, []);
 
   const handleSocialLogin = async (provider: 'google' | 'twitter' | 'github') => {
     setLoading(provider);
-    
+
     try {
-      // For now, create demo accounts for social login
-      // TODO: Implement real OAuth when needed
-      const demoEmail = `demo-${provider}@starklytics.com`;
-      const demoPassword = 'demo123456';
-      
-      const { error } = await signIn(demoEmail, demoPassword);
-      
-      if (error) {
-        throw error;
+      if (provider === 'google') {
+        // Initialize Google OAuth
+        const googleAuth = (window as any).gapi?.auth2?.getAuthInstance();
+        if (!googleAuth) {
+          // Load Google API if not loaded
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/platform.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+
+          await new Promise<void>((resolve) => {
+            (window as any).gapi.load('auth2', async () => {
+              const auth2 = await (window as any).gapi.auth2.init({
+                client_id: googleClientId || '493459087329-esd7kq05bmm0v8k10h3glp1hrk91ipfj.apps.googleusercontent.com'
+              });
+              const googleUser = await auth2.signIn();
+              const idToken = googleUser.getAuthResponse().id_token;
+
+              // Send token to backend
+              const { error } = await signInWithGoogle(idToken, 'analyst');
+
+              if (error) {
+                throw new Error(error);
+              }
+
+              toast({
+                title: "Login successful",
+                description: "You've been signed in with Google",
+              });
+
+              resolve();
+            });
+          });
+        } else {
+          const googleUser = await googleAuth.signIn();
+          const idToken = googleUser.getAuthResponse().id_token;
+
+          // Send token to backend
+          const { error } = await signInWithGoogle(idToken, 'analyst');
+
+          if (error) {
+            throw new Error(error);
+          }
+
+          toast({
+            title: "Login successful",
+            description: "You've been signed in with Google",
+          });
+        }
+      } else {
+        // For Twitter and GitHub, use demo mode for now
+        const demoEmail = `demo-${provider}@starklytics.com`;
+        const demoPassword = 'demo123456';
+
+        const { error } = await signIn(demoEmail, demoPassword);
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Demo Login Successful",
+          description: `Signed in with demo ${provider} account`,
+        });
       }
-      
-      toast({
-        title: "Demo Login Successful",
-        description: `Signed in with demo ${provider} account`,
-      });
-      
+
     } catch (error: any) {
       console.error(`${provider} login failed:`, error);
       toast({

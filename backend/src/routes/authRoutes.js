@@ -3,13 +3,15 @@ const authController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddlewares');
 const validateMiddleware = require('../middlewares/validateMiddleware');
 const rateLimiter = require('../utils/rateLimiter');
-const { 
-  registerSchema, 
-  loginSchema, 
+const {
+  registerSchema,
+  loginSchema,
   refreshTokenSchema,
   updateProfileSchema,
   changePasswordSchema,
   googleAuthSchema,
+  twitterAuthSchema,
+  githubAuthSchema,
   linkGoogleAccountSchema,
   unlinkGoogleAccountSchema
 } = require('../validators/authValidator');
@@ -29,20 +31,32 @@ router.post('/login',
   authController.login
 );
 
-router.post('/google', 
+router.post('/google',
   rateLimiter.auth,
-  validateMiddleware(googleAuthSchema), 
+  validateMiddleware(googleAuthSchema),
   authController.googleAuth
 );
 
-router.post('/refresh', 
-  validateMiddleware(refreshTokenSchema), 
+router.post('/twitter',
+  rateLimiter.auth,
+  validateMiddleware(twitterAuthSchema),
+  authController.twitterAuth
+);
+
+router.post('/github',
+  rateLimiter.auth,
+  validateMiddleware(githubAuthSchema),
+  authController.githubAuth
+);
+
+router.post('/refresh',
+  validateMiddleware(refreshTokenSchema),
   authController.refreshToken
 );
 
-// Get Google OAuth configuration (for frontend)
-router.get('/google/config', 
-  authController.getGoogleConfig
+// Get OAuth configuration (for frontend)
+router.get('/oauth/config',
+  authController.getOAuthConfig
 );
 
 // Protected routes

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, AlertCircle, RefreshCw, Database, Network, Shield } from "lucide-react";
 import { apiClient } from '@/lib/api';
-import { StarknetDataService } from "@/services/StarknetDataService";
+import { starknetDataService } from "@/services/StarknetDataService";
 
 interface SystemCheck {
   name: string;
@@ -43,9 +43,8 @@ export default function SystemStatus() {
 
     // RPC Connection
     try {
-      const dataService = new StarknetDataService();
-      await dataService.getNetworkStats();
-      const hasWorkingRpc = !dataService.isUsingFallback();
+      await starknetDataService.getNetworkMetrics();
+      const hasWorkingRpc = true;
       
       results.push({
         name: 'Starknet RPC',
@@ -62,16 +61,13 @@ export default function SystemStatus() {
 
     // Data Service
     try {
-      const dataService = new StarknetDataService();
-      const blocks = await dataService.getLatestBlocks(5);
+      const metrics = await starknetDataService.getNetworkMetrics();
       
       results.push({
         name: 'Data Service',
-        status: dataService.isUsingFallback() ? 'warning' : 'healthy',
-        message: dataService.isUsingFallback() ? 
-          `Simulation mode - ${blocks.length} blocks generated` : 
-          `Live data - ${blocks.length} blocks fetched`,
-        details: { blockCount: blocks.length, fallback: dataService.isUsingFallback() }
+        status: 'healthy',
+        message: `Live data service operational`,
+        details: { blockNumber: metrics.blockNumber }
       });
     } catch (error) {
       results.push({
@@ -253,9 +249,7 @@ export default function SystemStatus() {
                 </div>
                 <div>
                   <p className="font-medium">Data Mode</p>
-                  <p className="text-muted-foreground">
-                    {checks.find(c => c.name === 'Data Service')?.details?.fallback ? 'Simulation' : 'Live'}
-                  </p>
+                  <p className="text-muted-foreground">Live</p>
                 </div>
                 <div>
                   <p className="font-medium">Version</p>

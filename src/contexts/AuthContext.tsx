@@ -19,8 +19,13 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }
+  ) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: (token: string, role?: 'analyst' | 'creator') => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
 }
@@ -44,16 +49,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Demo auth mode (local-only), everything else uses production API
+  const isDemoAuth = true;
+
   const fetchProfile = async () => {
     try {
-      const storedUser = localStorage.getItem('demo_user');
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        setProfile({ ...userData, fullName: `${userData.firstName} ${userData.lastName}` });
+      if (isDemoAuth) {
+        const storedUser = localStorage.getItem('demo_user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser) as User;
+          setUser(userData);
+          setProfile({
+            ...userData,
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          });
+        }
+      } else {
+        const response = await apiClient.get('/api/profile');
+        if (response?.data) {
+          const userData = response.data as User;
+          setUser(userData);
+          setProfile({
+            ...userData,
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      localStorage.removeItem('auth_token');
     }
   };
 
@@ -61,112 +85,188 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const initAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        if (token) {
-          await fetchProfile();
-        }
+        if (token) await fetchProfile();
       } catch (error) {
         console.error('Error loading session:', error);
-        apiClient.clearToken();
+        localStorage.removeItem('auth_token');
       }
-      
       setLoading(false);
     };
-
     initAuth();
   }, []);
 
-  const signUp = async (email: string, password: string, userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    userData?: { firstName?: string; lastName?: string; role?: 'analyst' | 'creator' }
+  ) => {
     try {
-      // Demo mode - create user locally
-      const newUser: User = {
-        _id: Date.now().toString(),
-        email,
-        firstName: userData?.firstName || 'Demo',
-        lastName: userData?.lastName || 'User',
-        role: userData?.role === 'creator' ? 'creator' : 'analyst',
-        isActive: true,
-        lastLogin: new Date()
-      };
-      
-      const token = `demo_token_${Date.now()}`;
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('demo_user', JSON.stringify(newUser));
-      
-      setUser(newUser);
-      setProfile({ ...newUser, fullName: `${newUser.firstName} ${newUser.lastName}` });
-      
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
-      
-      return { error: null };
+      setLoading(true);
+      if (isDemoAuth) {
+        const demoUser: User = {
+          _id: `demo_${Date.now()}`,
+          email,
+          firstName: userData?.firstName || 'Demo',
+          lastName: userData?.lastName || 'User',
+          role: userData?.role || 'analyst',
+          isActive: true,
+          lastLogin: new Date()
+        };
+        localStorage.setItem('demo_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', `demo_token_${Date.now()}`);
+        setUser(demoUser);
+        setProfile({
+          ...demoUser,
+          fullName: `${demoUser.firstName} ${demoUser.lastName}`.trim()
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.post('/api/auth/signup', {
+          email,
+          password,
+          ...userData
+        });
+        if (response?.data?.token) {
+          localStorage.setItem('auth_token', response.data.token);
+          await fetchProfile();
+        }
+        return { error: null };
+      }
     } catch (error: any) {
       return { error };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Demo mode - accept any credentials
-      const demoUser: User = {
-        _id: 'demo_user_123',
-        email,
-        firstName: 'Demo',
-        lastName: 'User',
-        role: email.includes('creator') ? 'creator' : 'analyst',
-        isActive: true,
-        lastLogin: new Date()
-      };
-      
-      const token = `demo_token_${Date.now()}`;
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('demo_user', JSON.stringify(demoUser));
-      
-      setUser(demoUser);
-      setProfile({ ...demoUser, fullName: `${demoUser.firstName} ${demoUser.lastName}` });
-      
-      return { error: null };
+      setLoading(true);
+      if (isDemoAuth) {
+        const demoUser: User = {
+          _id: 'demo_user_123',
+          email,
+          firstName: 'Demo',
+          lastName: 'User',
+          role: 'analyst',
+          isActive: true,
+          lastLogin: new Date()
+        };
+        localStorage.setItem('demo_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', 'demo_token_123');
+        setUser(demoUser);
+        setProfile({
+          ...demoUser,
+          fullName: 'Demo User'
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.post('/api/auth/signin', { email, password });
+        if (response?.data?.token) {
+          localStorage.setItem('auth_token', response.data.token);
+          await fetchProfile();
+        }
+        return { error: null };
+      }
     } catch (error: any) {
       return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInWithGoogle = async (token: string, role?: 'analyst' | 'creator') => {
+    try {
+      setLoading(true);
+      if (isDemoAuth) {
+        const demoUser: User = {
+          _id: 'demo_google_user',
+          email: 'demo@google.com',
+          firstName: 'Google',
+          lastName: 'User',
+          role: role || 'analyst',
+          isActive: true,
+          lastLogin: new Date()
+        };
+        localStorage.setItem('demo_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', 'demo_google_token');
+        setUser(demoUser);
+        setProfile({
+          ...demoUser,
+          fullName: 'Google User'
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.post('/api/auth/google', { token, role });
+        if (response?.data?.token) {
+          localStorage.setItem('auth_token', response.data.token);
+          await fetchProfile();
+        }
+        return { error: null };
+      }
+    } catch (error: any) {
+      return { error };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
-    apiClient.clearToken();
-    setUser(null);
-    setProfile(null);
-    window.location.href = '/auth';
-  };
-
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { error: 'No user found' };
-
     try {
-      const updatedUser = { ...user, ...updates };
-      localStorage.setItem('demo_user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      setProfile({ ...updatedUser, fullName: `${updatedUser.firstName} ${updatedUser.lastName}` });
-      
-      return { error: null };
-    } catch (error: any) {
-      console.error('Error updating profile:', error);
-      return { error };
+      setLoading(true);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('demo_user');
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const value = {
+  const updateProfile = async (updates: Partial<Profile>) => {
+    try {
+      setLoading(true);
+      if (isDemoAuth) {
+        const currentUser = JSON.parse(localStorage.getItem('demo_user') || '{}');
+        const updatedUser = { ...currentUser, ...updates };
+        localStorage.setItem('demo_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        setProfile({
+          ...updatedUser,
+          fullName: `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim()
+        });
+        return { error: null };
+      } else {
+        const response = await apiClient.put('/api/profile', updates);
+        if (response?.data) {
+          const userData = response.data as User;
+          setUser(userData);
+          setProfile({
+            ...userData,
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim()
+          });
+        }
+        return { error: null };
+      }
+    } catch (error: any) {
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const value: AuthContextType = {
     user,
     profile,
     loading,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     updateProfile,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

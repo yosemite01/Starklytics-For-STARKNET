@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -55,12 +55,7 @@ export function BountyDetailsDialog({ bounty, onJoin, isCreator }: BountyDetails
             {bounty.title}
           </DialogTitle>
           <DialogDescription>
-            <Badge 
-              variant={bounty.status === "active" ? "default" : "secondary"}
-              className={bounty.status === "active" ? "glow-primary" : ""}
-            >
-              {bounty.status.charAt(0).toUpperCase() + bounty.status.slice(1)}
-            </Badge>
+            {bounty.status.charAt(0).toUpperCase() + bounty.status.slice(1)}
           </DialogDescription>
         </DialogHeader>
 
@@ -100,7 +95,7 @@ export function BountyDetailsDialog({ bounty, onJoin, isCreator }: BountyDetails
             </h4>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
               {bounty.requirements.map((req, i) => (
-                <li key={i}>{req}</li>
+                <li key={i}>{req.description}</li>
               ))}
             </ul>
           </div>

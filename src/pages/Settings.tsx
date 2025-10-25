@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { AuthenticatedSidebar } from '@/components/layout/AuthenticatedSidebar';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Settings as SettingsIcon, Bell, Shield, Database, Palette } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, Database, Palette, Home } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
   const { user, profile, updateProfile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   
   const [settings, setSettings] = useState({
@@ -54,9 +55,21 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AuthenticatedSidebar />
-      <div className="lg:ml-64 flex flex-col min-h-screen">
-        <Header title="Settings" subtitle="Manage your account preferences" />
+      <div className="flex flex-col min-h-screen">
+        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex h-14 items-center justify-between px-6">
+            <h1 className="text-lg font-semibold">Settings</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2"
+            >
+              <Home className="h-4 w-4" />
+              Back to Home
+            </Button>
+          </div>
+        </div>
         
         <main className="flex-1 p-6 space-y-6">
           <div className="max-w-2xl mx-auto space-y-6">

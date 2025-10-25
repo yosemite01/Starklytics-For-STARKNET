@@ -34,9 +34,9 @@ class ApiClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
 
     if (this.token) {
@@ -69,6 +69,46 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+  }
+
+  async googleAuth(token: string, role?: string) {
+    return this.request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ token, role }),
+    });
+  }
+
+  async twitterAuth(code: string, codeVerifier: string, role?: string) {
+    return this.request('/auth/twitter', {
+      method: 'POST',
+      body: JSON.stringify({ code, codeVerifier, role }),
+    });
+  }
+
+  async githubAuth(code: string, role?: string) {
+    return this.request('/auth/github', {
+      method: 'POST',
+      body: JSON.stringify({ code, role }),
+    });
+  }
+
+  async getOAuthConfig() {
+    return this.request('/auth/oauth/config');
+  }
+
+  async getGoogleConfig() {
+    return this.request('/auth/google/config');
+  }
+
+  async post(endpoint: string, data: any) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async get(endpoint: string) {
+    return this.request(endpoint);
   }
 
   async getProfile() {

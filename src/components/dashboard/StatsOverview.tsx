@@ -14,14 +14,35 @@ export function StatsOverview() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const data = await bountyService.getStats();
-        setStats(data);
+        // Get real-time data from bounty service
+        const bounties = await bountyService.getBounties();
+        const activeBounties = bounties.filter(b => b.status === 'active');
+        const totalRewards = bounties.reduce((sum, b) => sum + b.reward.amount, 0);
+        
+        // Get unique participants count
+        const participants = new Set();
+        bounties.forEach(b => {
+          participants.add(b.creator_id);
+          if (b.participants) {
+            b.participants.forEach(p => participants.add(p));
+          }
+        });
+        
+        setStats({
+          totalBounties: bounties.length,
+          activeBounties: activeBounties.length,
+          totalRewards: totalRewards,
+          activeParticipants: participants.size
+        });
       } catch (error) {
         console.error('Error fetching stats:', error);
       }
     };
 
     fetchStats();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const statCards = [

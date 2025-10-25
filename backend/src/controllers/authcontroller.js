@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const { generateTokens } = require('../utils/generateToken');
 const googleAuthService = require('../utils/googleAuth');
+const twitterAuthService = require('../utils/twitterAuth');
+const githubAuthService = require('../utils/githubAuth');
 const logger = require('../utils/logger');
 
 const authController = {
@@ -547,26 +549,164 @@ const authController = {
     });
   },
 
-  // Get Google OAuth configuration (for frontend)
-  async getGoogleConfig(req, res) {
+  // Twitter OAuth authentication
+  async twitterAuth(req, res) {
+    const { code, codeVerifier, role } = req.body;
+
     try {
-      const config = googleAuthService.getAuthConfig();
-      
+      // Exchange authorization code for access token
+      const tokenData = await twitterAuthService.exchangeCodeForToken(code, codeVerifier);
+
+      // Get user information from Twitter
+      const twitterProfile = await twitterAuthService.getUserInfo(tokenData.access_token);
+
+      // Find or create user with Twitter profile
+      const user = await User.findOrCreateTwitterUser(twitterProfile, role);
+
+      // Generate JWT tokens
+      const { accessToken, refreshToken } = generateTokens({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Save refresh token and update last login
+      user.refreshToken = refreshToken;
+      await user.updateLastLogin();
+
+      logger.info(`Twitter user authenticated: ${user.email}`, {
+        requestId: req.requestId,
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        authProvider: user.authProvider,
+        isNewUser: !user.lastLogin
+      });
+
       res.json({
         success: true,
+        message: 'Twitter authentication successful',
         data: {
-          googleClientId: config.clientId
+          user: {
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: user.fullName,
+            authProvider: user.authProvider,
+            profilePicture: user.profilePicture,
+            isEmailVerified: user.isEmailVerified,
+            lastLogin: user.lastLogin
+          },
+          accessToken,
+          refreshToken
         }
       });
+
     } catch (error) {
-      logger.error('Failed to get Google config', {
+      logger.error('Twitter authentication failed', {
         requestId: req.requestId,
         error: error.message
       });
-      
+
+      return res.status(401).json({
+        success: false,
+        message: error.message || 'Twitter authentication failed'
+      });
+    }
+  },
+
+  // GitHub OAuth authentication
+  async githubAuth(req, res) {
+    const { code, role } = req.body;
+
+    try {
+      // Exchange authorization code for access token
+      const tokenData = await githubAuthService.exchangeCodeForToken(code);
+
+      // Get user information from GitHub
+      const githubProfile = await githubAuthService.getUserInfo(tokenData.access_token);
+
+      // Find or create user with GitHub profile
+      const user = await User.findOrCreateGithubUser(githubProfile, role);
+
+      // Generate JWT tokens
+      const { accessToken, refreshToken } = generateTokens({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Save refresh token and update last login
+      user.refreshToken = refreshToken;
+      await user.updateLastLogin();
+
+      logger.info(`GitHub user authenticated: ${user.email}`, {
+        requestId: req.requestId,
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        authProvider: user.authProvider,
+        isNewUser: !user.lastLogin
+      });
+
+      res.json({
+        success: true,
+        message: 'GitHub authentication successful',
+        data: {
+          user: {
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: user.fullName,
+            authProvider: user.authProvider,
+            profilePicture: user.profilePicture,
+            isEmailVerified: user.isEmailVerified,
+            lastLogin: user.lastLogin
+          },
+          accessToken,
+          refreshToken
+        }
+      });
+
+    } catch (error) {
+      logger.error('GitHub authentication failed', {
+        requestId: req.requestId,
+        error: error.message
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: error.message || 'GitHub authentication failed'
+      });
+    }
+  },
+
+  // Get OAuth configuration (for frontend)
+  async getOAuthConfig(req, res) {
+    try {
+      const config = {
+        google: googleAuthService.getAuthConfig(),
+        twitter: twitterAuthService.getAuthConfig(),
+        github: githubAuthService.getAuthConfig()
+      };
+
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      logger.error('Failed to get OAuth config', {
+        requestId: req.requestId,
+        error: error.message
+      });
+
       res.status(500).json({
         success: false,
-        message: 'Google OAuth not properly configured'
+        message: 'OAuth not properly configured'
       });
     }
   }

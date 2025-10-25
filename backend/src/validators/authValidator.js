@@ -118,6 +118,28 @@ const googleAuthSchema = z.object({
   role: roleSchema
 }).strict();
 
+// Twitter OAuth authentication schema
+const twitterAuthSchema = z.object({
+  code: z
+    .string()
+    .min(1, { message: 'Twitter authorization code is required' })
+    .max(500, { message: 'Twitter code is too long' }),
+  codeVerifier: z
+    .string()
+    .min(43, { message: 'Code verifier must be at least 43 characters' })
+    .max(128, { message: 'Code verifier is too long' }),
+  role: roleSchema
+}).strict();
+
+// GitHub OAuth authentication schema
+const githubAuthSchema = z.object({
+  code: z
+    .string()
+    .min(1, { message: 'GitHub authorization code is required' })
+    .max(500, { message: 'GitHub code is too long' }),
+  role: roleSchema
+}).strict();
+
 // Link Google account schema
 const linkGoogleAccountSchema = z.object({
   token: z
@@ -144,6 +166,8 @@ module.exports = {
   resetPasswordSchema,
   updateRoleSchema,
   googleAuthSchema,
+  twitterAuthSchema,
+  githubAuthSchema,
   linkGoogleAccountSchema,
   unlinkGoogleAccountSchema
 };

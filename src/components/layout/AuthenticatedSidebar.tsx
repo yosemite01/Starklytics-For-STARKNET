@@ -24,10 +24,9 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Query Editor", href: "/query", icon: Database },
   { name: "Dashboard Builder", href: "/builder", icon: Layout },
-  { name: "Data Visualization", href: "/charts", icon: FileBarChart },
+
   { name: "Contract Analysis", href: "/contract-events-eda", icon: Activity },
   { name: "Bounties", href: "/bounties", icon: Trophy },
   { name: "Wallet", href: "/wallet", icon: Wallet },
