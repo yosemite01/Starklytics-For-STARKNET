@@ -11,7 +11,6 @@ const {
   updateProfileSchema,
   changePasswordSchema,
   googleAuthSchema,
-  twitterAuthSchema,
   githubAuthSchema,
   linkGoogleAccountSchema,
   unlinkGoogleAccountSchema
@@ -41,11 +40,7 @@ router.post('/google',
   authController.googleAuth
 );
 
-router.post('/twitter',
-  rateLimiter.auth,
-  validateMiddleware(twitterAuthSchema),
-  authController.twitterAuth
-);
+
 
 router.post('/github',
   rateLimiter.auth,

@@ -1,124 +1,107 @@
 const User = require('../models/User');
 const { generateTokens } = require('../utils/generateToken');
 const googleAuthService = require('../utils/googleAuth');
-const twitterAuthService = require('../utils/twitterAuth');
+
 const githubAuthService = require('../utils/githubAuth');
 const logger = require('../utils/logger');
 
 const authController = {
   // Register new user
   async register(req, res) {
-    const { email, password, role, firstName, lastName } = req.body;
+    try {
+      const { email, password, role, firstName, lastName } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      logger.warn(`Registration attempt with existing email: ${email}`, {
+      // Check if user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        logger.warn(`Registration attempt with existing email: ${email}`, {
+          requestId: req.requestId,
+          email
+        });
+        
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+
+      // Create user
+      const user = new User({
+        email,
+        password,
+        role: role || 'analyst',
+        firstName,
+        lastName,
+        authProvider: 'local'
+      });
+
+      await user.save();
+
+      // Generate tokens
+      const { accessToken, refreshToken } = generateTokens({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Save refresh token to database
+      user.refreshToken = refreshToken;
+      await user.save({ validateBeforeSave: false });
+
+      logger.info(`New user registered: ${email}`, {
         requestId: req.requestId,
-        email
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        authProvider: user.authProvider
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        token: accessToken,
+        data: {
+          user: {
+            _id: user._id,
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: user.fullName,
+            authProvider: user.authProvider,
+            profilePicture: user.profilePicture,
+            isEmailVerified: user.isEmailVerified,
+            isActive: user.isActive,
+            createdAt: user.createdAt
+          },
+          accessToken,
+          refreshToken
+        }
+      });
+    } catch (error) {
+      logger.error('Registration failed', {
+        requestId: req.requestId,
+        error: error.message
       });
       
-      return res.status(400).json({
+      res.status(500).json({
         success: false,
-        message: 'User with this email already exists'
+        message: error.message || 'Registration failed'
       });
     }
-
-    // Create user
-    const user = new User({
-      email,
-      password,
-      role: role || 'analyst',
-      firstName,
-      lastName,
-      authProvider: 'local'
-    });
-
-    await user.save();
-
-    // Generate tokens
-    const { accessToken, refreshToken } = generateTokens({
-      userId: user._id,
-      email: user.email,
-      role: user.role
-    });
-
-    // Save refresh token to database
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
-
-    logger.info(`New user registered: ${email}`, {
-      requestId: req.requestId,
-      userId: user._id,
-      email: user.email,
-      role: user.role,
-      authProvider: user.authProvider
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      token: accessToken,
-      data: {
-        user: {
-          _id: user._id,
-          id: user._id,
-          email: user.email,
-          role: user.role,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: user.fullName,
-          authProvider: user.authProvider,
-          profilePicture: user.profilePicture,
-          isEmailVerified: user.isEmailVerified,
-          isActive: user.isActive,
-          createdAt: user.createdAt
-        },
-        accessToken,
-        refreshToken
-      }
-    });
   },
 
   // Login user
   async login(req, res) {
-    const { email, password } = req.body;
-
-    // Find user with password
-    const user = await User.findByEmailWithPassword(email);
-    if (!user) {
-      logger.warn(`Login attempt with invalid email: ${email}`, {
-        requestId: req.requestId,
-        email
-      });
-      
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    // Check if user is a Google OAuth user
-    if (user.authProvider === 'google' && !user.password) {
-      logger.warn(`Local login attempt for Google user: ${email}`, {
-        requestId: req.requestId,
-        userId: user._id,
-        email
-      });
-      
-      return res.status(401).json({
-        success: false,
-        message: 'Please sign in with Google'
-      });
-    }
-
-    // Check password
     try {
-      const isPasswordValid = await user.comparePassword(password);
-      if (!isPasswordValid) {
-        logger.warn(`Login attempt with invalid password for: ${email}`, {
+      const { email, password } = req.body;
+
+      // Find user with password
+      const user = await User.findByEmailWithPassword(email);
+      if (!user) {
+        logger.warn(`Login attempt with invalid email: ${email}`, {
           requestId: req.requestId,
-          userId: user._id,
           email
         });
         
@@ -127,61 +110,102 @@ const authController = {
           message: 'Invalid credentials'
         });
       }
-    } catch (error) {
-      logger.error(`Password comparison error for: ${email}`, {
+
+      // Check if user is a Google OAuth user
+      if (user.authProvider === 'google' && !user.password) {
+        logger.warn(`Local login attempt for Google user: ${email}`, {
+          requestId: req.requestId,
+          userId: user._id,
+          email
+        });
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Please sign in with Google'
+        });
+      }
+
+      // Check password
+      try {
+        const isPasswordValid = await user.comparePassword(password);
+        if (!isPasswordValid) {
+          logger.warn(`Login attempt with invalid password for: ${email}`, {
+            requestId: req.requestId,
+            userId: user._id,
+            email
+          });
+          
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid credentials'
+          });
+        }
+      } catch (error) {
+        logger.error(`Password comparison error for: ${email}`, {
+          requestId: req.requestId,
+          userId: user._id,
+          error: error.message
+        });
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+
+      // Generate tokens
+      const { accessToken, refreshToken } = generateTokens({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Update refresh token and last login
+      user.refreshToken = refreshToken;
+      await user.updateLastLogin();
+
+      logger.info(`User logged in: ${email}`, {
         requestId: req.requestId,
         userId: user._id,
+        email: user.email,
+        role: user.role,
+        authProvider: user.authProvider
+      });
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        token: accessToken,
+        data: {
+          user: {
+            _id: user._id,
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: user.fullName,
+            authProvider: user.authProvider,
+            profilePicture: user.profilePicture,
+            isEmailVerified: user.isEmailVerified,
+            isActive: user.isActive,
+            lastLogin: user.lastLogin
+          },
+          accessToken,
+          refreshToken
+        }
+      });
+    } catch (error) {
+      logger.error('Login failed', {
+        requestId: req.requestId,
         error: error.message
       });
       
-      return res.status(401).json({
+      res.status(500).json({
         success: false,
-        message: 'Invalid credentials'
+        message: error.message || 'Login failed'
       });
     }
-
-    // Generate tokens
-    const { accessToken, refreshToken } = generateTokens({
-      userId: user._id,
-      email: user.email,
-      role: user.role
-    });
-
-    // Update refresh token and last login
-    user.refreshToken = refreshToken;
-    await user.updateLastLogin();
-
-    logger.info(`User logged in: ${email}`, {
-      requestId: req.requestId,
-      userId: user._id,
-      email: user.email,
-      role: user.role,
-      authProvider: user.authProvider
-    });
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token: accessToken,
-      data: {
-        user: {
-          _id: user._id,
-          id: user._id,
-          email: user.email,
-          role: user.role,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: user.fullName,
-          authProvider: user.authProvider,
-          profilePicture: user.profilePicture,
-          isEmailVerified: user.isEmailVerified,
-          isActive: user.isActive,
-          lastLogin: user.lastLogin
-        },
-        accessToken,
-        refreshToken
-      }
-    });
   },
 
   // Google OAuth authentication
@@ -555,73 +579,7 @@ const authController = {
     });
   },
 
-  // Twitter OAuth authentication
-  async twitterAuth(req, res) {
-    const { code, codeVerifier, role } = req.body;
 
-    try {
-      // Exchange authorization code for access token
-      const tokenData = await twitterAuthService.exchangeCodeForToken(code, codeVerifier);
-
-      // Get user information from Twitter
-      const twitterProfile = await twitterAuthService.getUserInfo(tokenData.access_token);
-
-      // Find or create user with Twitter profile
-      const user = await User.findOrCreateTwitterUser(twitterProfile, role);
-
-      // Generate JWT tokens
-      const { accessToken, refreshToken } = generateTokens({
-        userId: user._id,
-        email: user.email,
-        role: user.role
-      });
-
-      // Save refresh token and update last login
-      user.refreshToken = refreshToken;
-      await user.updateLastLogin();
-
-      logger.info(`Twitter user authenticated: ${user.email}`, {
-        requestId: req.requestId,
-        userId: user._id,
-        email: user.email,
-        role: user.role,
-        authProvider: user.authProvider,
-        isNewUser: !user.lastLogin
-      });
-
-      res.json({
-        success: true,
-        message: 'Twitter authentication successful',
-        data: {
-          user: {
-            id: user._id,
-            email: user.email,
-            role: user.role,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            fullName: user.fullName,
-            authProvider: user.authProvider,
-            profilePicture: user.profilePicture,
-            isEmailVerified: user.isEmailVerified,
-            lastLogin: user.lastLogin
-          },
-          accessToken,
-          refreshToken
-        }
-      });
-
-    } catch (error) {
-      logger.error('Twitter authentication failed', {
-        requestId: req.requestId,
-        error: error.message
-      });
-
-      return res.status(401).json({
-        success: false,
-        message: error.message || 'Twitter authentication failed'
-      });
-    }
-  },
 
   // GitHub OAuth authentication
   async githubAuth(req, res) {
@@ -696,7 +654,7 @@ const authController = {
     try {
       const config = {
         google: googleAuthService.getAuthConfig(),
-        twitter: twitterAuthService.getAuthConfig(),
+
         github: githubAuthService.getAuthConfig()
       };
 
